@@ -1,443 +1,352 @@
-(* Evaluation: a checked program becomes values.
+type t = { node : node; marker : string option }
 
-   Types have erased by the time anything here runs, with one exception noted
-   at 'run'. Every dispatch below is on a runtime constructor. *)
+and node =
+  | Int of Z.t
+  | Decimal of Q.t
+  | String of string
+  | Set of element list
+  | Edge of edge
+  | UndirectedEdge of edge
+  | Struct of string * t list
+  | Variant of string * string * t list
 
-open Ast
+and edge = { left : t; right : t; payload : t option }
 
-type value =
-  | VInt of int64
-  | VDec of float
-  | VStr of string
-  | VFronce of fronce
-  | VSet of elem list
-  | VEdge of value * value * value option
-  | VUEdge of value * value * value option
-  | VStruct of string * value list
+and element = { value : t }
 
-(* Two DISJOINT namespaces. The marker is provenance, not meaning: the only
-   content a token carries is its index, and only a pinned index is the
-   author's to choose. Keeping the spaces apart is what makes minting
-   order-independent, since an auto index can never collide with a pinned one
-   however the program is ordered. *)
-and fronce = Auto of int | User of int
+type binding = { mutable_ : bool; mutable current : t }
 
-(* An element carries the NAME it was written as, when it was written as one.
-   For graph-valued elements that name IS the identity; elsewhere it becomes
-   the column label. *)
-and elem = { label : string option; v : value }
+type environment = (string, binding) Hashtbl.t
 
-(* A graph value: a non-empty set whose elements are all edge-shaped, where a
-   nested set counts only if it is NAMED and itself graph-valued. The emptiness
-   condition is what keeps '{}' from being a graph, so empty graphs compare
-   structurally and are all equal. *)
-let rec is_graph_val = function
-  | VSet (_ :: _ as elems) ->
+type error = { loc : Ast.loc; message : string }
+
+let at ?marker node = { node; marker }
+
+let location_marker prefix (loc : Ast.loc) =
+  Printf.sprintf "%s:%d:%d" prefix loc.line loc.column
+
+let is_graph value =
+  match value.node with
+  | Set (_ :: _ as elements) ->
       List.for_all
-        (fun e ->
-          match e.v with
-          | VEdge _ | VUEdge _ -> true
-          | VSet _ -> e.label <> None && is_graph_val e.v
-          | _ -> false)
-        elems
+        (fun element ->
+          match element.value.node with Edge _ | UndirectedEdge _ -> true | _ -> false)
+        elements
   | _ -> false
 
-(* -- identity --------------------------------------------------------------- *)
+let rec equal left right =
+  if is_graph left && is_graph right then
+    match (left.marker, right.marker) with
+    | Some left, Some right -> left = right
+    | _ -> equal_node left.node right.node
+  else equal_node left.node right.node
 
-(* Structural equality that bottoms out at the graph boundary: graph-valued
-   NAMED elements compare by name alone. An empty set is not graph-valued, so
-   empty graphs miss this tier and compare structurally, where they are all
-   equal whatever they were named. *)
-let rec elems_eq a b =
-  match (a.label, b.label) with
-  | Some la, Some lb when is_graph_val a.v && is_graph_val b.v -> la = lb
-  | _ -> vals_eq a.v b.v
+and equal_node left right =
+  match (left, right) with
+  | Int left, Int right -> Z.equal left right
+  | Decimal left, Decimal right -> Q.equal left right
+  | String left, String right -> String.equal left right
+  | Set left, Set right ->
+      List.length left = List.length right
+      && List.for_all
+           (fun left -> List.exists (fun right -> equal left.value right.value) right)
+           left
+  | Edge left, Edge right | UndirectedEdge left, UndirectedEdge right ->
+      equal_edge left right
+  | Struct (left_name, left_values), Struct (right_name, right_values) ->
+      String.equal left_name right_name
+      && List.length left_values = List.length right_values
+      && List.for_all2 equal left_values right_values
+  | Variant (left_enum, left_name, left_values),
+    Variant (right_enum, right_name, right_values) ->
+      String.equal left_enum right_enum
+      && String.equal left_name right_name
+      && List.length left_values = List.length right_values
+      && List.for_all2 equal left_values right_values
+  | _ -> false
 
-(* Payloads are part of edge structure, so edges differing only in annotation
-   are DIFFERENT edges. That is what makes parallel edges representable. *)
-and anns_eq a b =
-  match (a, b) with
+and equal_edge left right =
+  equal left.left right.left
+  && equal left.right right.right
+  &&
+  match (left.payload, right.payload) with
   | None, None -> true
-  | Some x, Some y -> vals_eq x y
+  | Some left, Some right -> equal left right
   | _ -> false
 
-and vals_eq a b =
-  match (a, b) with
-  | VInt x, VInt y -> x = y
-  | VDec x, VDec y -> x = y
-  | VStr x, VStr y -> x = y
-  | VFronce x, VFronce y -> x = y
-  (* Struct fields are POSITIONAL, so they zip: City("Zurich", 400000) means
-     name-then-pop and the order is part of the value. *)
-  | VStruct (n, xs), VStruct (m, ys) ->
-      n = m && List.length xs = List.length ys && List.for_all2 vals_eq xs ys
-  (* Sets are UNORDERED, so they must NOT zip: a list's order here is insertion
-     order, an artifact of how the value was written. Length plus one-way
-     containment is sound only because every set is duplicate-free by
-     construction, at push_unique's every call site; without that, [a,a,b] and
-     [a,b,b] would compare equal. *)
-  | VSet xs, VSet ys ->
-      List.length xs = List.length ys
-      && List.for_all (fun x -> List.exists (elems_eq x) ys) xs
-  | VEdge (t1, h1, a1), VEdge (t2, h2, a2) ->
-      vals_eq t1 t2 && vals_eq h1 h2 && anns_eq a1 a2
-  (* Sides compare POSITIONALLY, deliberately: orientation is part of an
-     undirected edge's identity, so '{1} <-> {2}' and '{2} <-> {1}' are
-     different values and a set holding both keeps both. Sameness across
-     spellings is expressed in the one place it belongs, in as_elems: a uedge
-     used as an OPERAND dissolves into its two directed halves, where
-     orientation cannot survive. *)
-  | VUEdge (a1, b1, n1), VUEdge (a2, b2, n2) ->
-      vals_eq a1 a2 && vals_eq b1 b2 && anns_eq n1 n2
-  | _ -> false
+let add_unique elements value =
+  if List.exists (fun element -> equal element.value value) elements then elements
+  else elements @ [ { value } ]
 
-(* -- display ---------------------------------------------------------------- *)
+let union left right =
+  List.fold_left (fun values element -> add_unique values element.value) left right
 
-(* Rust's Debug for str, which is what the display form has always been:
-   quotes and backslash escaped, the usual control characters named, and
-   anything else below space as '\u{..}'. Printable non-ASCII is left alone. *)
-let quote s =
-  let b = Buffer.create (String.length s + 2) in
-  Buffer.add_char b '"';
+let intersection left right =
+  List.filter
+    (fun element ->
+      List.exists (fun candidate -> equal element.value candidate.value) right)
+    left
+
+let difference left right =
+  List.filter
+    (fun element ->
+      not (List.exists (fun candidate -> equal element.value candidate.value) right))
+    left
+
+let set_operation operator left right =
+  match operator with
+  | Ast.Union -> union left right
+  | Ast.Intersection -> intersection left right
+  | Ast.Difference -> difference left right
+
+let quote text =
+  let buffer = Buffer.create (String.length text + 2) in
+  Buffer.add_char buffer '"';
   String.iter
-    (fun c ->
-      match c with
-      | '"' -> Buffer.add_string b "\\\""
-      | '\\' -> Buffer.add_string b "\\\\"
-      | '\n' -> Buffer.add_string b "\\n"
-      | '\t' -> Buffer.add_string b "\\t"
-      | '\r' -> Buffer.add_string b "\\r"
-      | c when Char.code c < 0x20 || Char.code c = 0x7f ->
-          Buffer.add_string b (Printf.sprintf "\\u{%x}" (Char.code c))
-      | c -> Buffer.add_char b c)
-    s;
-  Buffer.add_char b '"';
-  Buffer.contents b
+    (function
+      | '"' -> Buffer.add_string buffer "\\\""
+      | '\\' -> Buffer.add_string buffer "\\\\"
+      | '\n' -> Buffer.add_string buffer "\\n"
+      | '\t' -> Buffer.add_string buffer "\\t"
+      | '\r' -> Buffer.add_string buffer "\\r"
+      | character -> Buffer.add_char buffer character)
+    text;
+  Buffer.add_char buffer '"';
+  Buffer.contents buffer
 
-(* Shortest form that round-trips, matching how Rust renders a float. *)
-let float_repr f =
-  let rec shortest p =
-    if p > 17 then Printf.sprintf "%.17g" f
-    else
-      let s = Printf.sprintf "%.*g" p f in
-      if float_of_string s = f then s else shortest (p + 1)
+let decimal_string value =
+  let numerator = Q.num value and denominator = Q.den value in
+  let rec powers value twos fives =
+    if Z.equal (Z.erem value (Z.of_int 2)) Z.zero then
+      powers (Z.ediv value (Z.of_int 2)) (twos + 1) fives
+    else if Z.equal (Z.erem value (Z.of_int 5)) Z.zero then
+      powers (Z.ediv value (Z.of_int 5)) twos (fives + 1)
+    else (value, twos, fives)
   in
-  shortest 1
-
-let rec canon_elem e =
-  match (e.label, is_graph_val e.v) with Some l, true -> l | _ -> canon e.v
-
-and canon = function
-  | VInt i -> Int64.to_string i
-  (* Integral decimals keep their point: display must not conflate 100.0 with
-     the integer 100. *)
-  | VDec d when Float.is_integer d -> Printf.sprintf "%.1f" d
-  | VDec d -> float_repr d
-  | VStr s -> quote s
-  (* '%' cannot occur in a source name, so a rendered token can never collide
-     with a named graph when canonical text is used as a row key. *)
-  | VFronce (Auto n) -> Printf.sprintf "%%a%d" n
-  | VFronce (User n) -> Printf.sprintf "%%u%d" n
-  | VStruct (name, args) ->
-      name ^ "(" ^ String.concat ", " (List.map canon args) ^ ")"
-  | VSet elems -> "{" ^ String.concat ", " (List.map canon_elem elems) ^ "}"
-  | VEdge (t, h, None) -> "(" ^ canon t ^ " -> " ^ canon h ^ ")"
-  | VEdge (t, h, Some v) ->
-      "(" ^ canon t ^ " -[" ^ canon v ^ "]-> " ^ canon h ^ ")"
-  | VUEdge (a, b, None) -> "(" ^ canon a ^ " <-> " ^ canon b ^ ")"
-  | VUEdge (a, b, Some v) ->
-      "(" ^ canon a ^ " <-[" ^ canon v ^ "]-> " ^ canon b ^ ")"
-
-(* -- sets ------------------------------------------------------------------- *)
-
-let push_unique elems e =
-  if List.exists (fun x -> elems_eq x e) elems then elems else elems @ [ e ]
-
-(* A value usable as a set of elements: sets themselves, and undirected edges
-   through the UndirectedEdge <: Set<Edge> subsumption, where an annotated
-   uedge dissolves into two annotated directed halves carrying the same
-   payload.
-
-   A self-loop's two halves ARE the same edge, so the pair goes in through
-   push_unique. Set equality's one-way containment is sound only while every
-   set is duplicate-free, and this is the one construction site that could
-   otherwise hand back a duplicate. *)
-let as_elems = function
-  | VSet elems -> Some elems
-  | VUEdge (a, b, ann) ->
-      Some
-        (List.fold_left
-           (fun out (t, h) -> push_unique out { label = None; v = VEdge (t, h, ann) })
-           [] [ (a, b); (b, a) ])
-  | _ -> None
-
-let apply_set_op op acc rhs =
-  match op with
-  | Union -> List.fold_left push_unique acc rhs
-  | Inter -> List.filter (fun e -> List.exists (fun r -> elems_eq r e) rhs) acc
-  | Diff -> List.filter (fun e -> not (List.exists (fun r -> elems_eq r e) rhs)) acc
-
-(* Side surgery for op= on an edge: both sides must be sets. *)
-let side_op op l r =
-  match (l, r) with
-  | VSet a, VSet b -> Ok (VSet (apply_set_op op a b))
-  | _ -> Error (Printf.sprintf "'%s=' side is not a set" (op_symbol op))
-
-(* -- the minting discipline ------------------------------------------------- *)
-
-(* A minted token can only INTRODUCE a value and never match one, since it is
-   guaranteed unequal to everything that exists. This is the defensive twin of
-   the checker's rule. *)
-let rec mints_fronce (n : node) =
-  match n.it with
-  | Fronce None -> true
-  | Set ns | Op (_, ns) | Init (_, _, ns) -> List.exists mints_fronce ns
-  | Edge (a, b, ann) | UEdge (a, b, ann) ->
-      List.exists mints_fronce (a :: b :: Option.to_list ann)
-  | _ -> false
-
-let mint_match_err ctx =
-  ctx ^ " mints a token with '#', which can never match an existing value — \
-         pin it (#N) or bind the value to a name first"
-
-type mint = {
-  mutable pins : int list;  (* '#N' indices INTRODUCED so far *)
-  mutable next : int;       (* next auto index, its own space *)
-}
-
-type env = {
-  mutable vars : (string * value) list;  (* first-binding order preserved *)
-  fronces : mint;
-  (* Depth of matching context: '^' operands, '/' subtrahends, and the RHS of
-     '^=' and '/='. There a pinned token is a REFERENCE to an existing edge
-     rather than an introduction, so it neither registers for uniqueness nor
-     may it name a token never introduced. *)
-  mutable matching : int;
-}
-
-let fronce env pinned =
-  if env.matching > 0 then
-    match pinned with
-    | Some n when List.mem n env.fronces.pins -> Ok (VFronce (User n))
-    | Some n ->
-        Error
-          (Printf.sprintf
-             "fronce token #%d has not been introduced — nothing it could match" n)
-    (* Unreachable: mints_fronce rejects '#' here before evaluation. *)
-    | None -> Error (mint_match_err "this position")
+  let remainder, twos, fives = powers denominator 0 0 in
+  if not (Z.equal remainder Z.one) then Q.to_string value
   else
-    match pinned with
-    | Some n ->
-        if List.mem n env.fronces.pins then
-          Error
-            (Printf.sprintf
-               "fronce token #%d is written more than once — pinned tokens must \
-                be unique" n)
-        else (
-          env.fronces.pins <- n :: env.fronces.pins;
-          Ok (VFronce (User n)))
-    | None ->
-        let n = env.fronces.next in
-        env.fronces.next <- n + 1;
-        Ok (VFronce (Auto n))
+    let scale = max twos fives in
+    let scaled = Z.ediv (Z.mul numerator (Z.pow (Z.of_int 10) scale)) denominator in
+    let negative = Z.sign scaled < 0 in
+    let digits = Z.to_string (Z.abs scaled) in
+    let digits = String.make (max 0 (scale + 1 - String.length digits)) '0' ^ digits in
+    let length = String.length digits in
+    let integer = String.sub digits 0 (length - scale) in
+    let fraction = if scale = 0 then "0" else String.sub digits (length - scale) scale in
+    let rec trim index =
+      if index > 1 && fraction.[index - 1] = '0' then trim (index - 1) else index
+    in
+    let fraction = String.sub fraction 0 (trim (String.length fraction)) in
+    (if negative then "-" else "") ^ integer ^ "." ^ fraction
 
-let bind env name v =
-  if List.mem_assoc name env.vars then
-    env.vars <- List.map (fun (k, old) -> if k = name then (k, v) else (k, old)) env.vars
-  else env.vars <- env.vars @ [ (name, v) ]
+let rec to_string value =
+  match value.node with
+  | Int value -> Z.to_string value
+  | Decimal value -> decimal_string value
+  | String value -> quote value
+  | Set elements ->
+      "{" ^ String.concat ", " (List.map (fun element -> to_string element.value) elements)
+      ^ "}"
+  | Edge edge -> edge_string " -> " " -[" "]-> " edge
+  | UndirectedEdge edge -> edge_string " <-> " " <-[" "]-> " edge
+  | Struct (name, values) ->
+      name ^ "(" ^ String.concat ", " (List.map to_string values) ^ ")"
+  | Variant (enum_name, name, []) -> enum_name ^ "::" ^ name
+  | Variant (enum_name, name, values) ->
+      enum_name ^ "::" ^ name ^ "("
+      ^ String.concat ", " (List.map to_string values)
+      ^ ")"
 
-let get env name =
-  match List.assoc_opt name env.vars with
-  | Some v -> Ok v
-  | None -> Error ("undefined variable " ^ name)
+and edge_string plain prefix suffix edge =
+  match edge.payload with
+  | None -> to_string edge.left ^ plain ^ to_string edge.right
+  | Some payload ->
+      to_string edge.left ^ prefix ^ to_string payload ^ suffix ^ to_string edge.right
 
-(* -- evaluation ------------------------------------------------------------- *)
+let has_coercion (checked : Check.checked) (loc : Ast.loc) =
+  List.exists
+    (fun (coercion : Ast.loc) ->
+      coercion.line = loc.line && coercion.column = loc.column)
+    checked.Check.coercions
+
+let error loc message = Error { loc; message }
 
 let ( let* ) = Result.bind
 
-let rec eval env (n : node) =
-  match n.it with
-  | Int i -> Ok (VInt i)
-  | Dec d -> Ok (VDec d)
-  | Str s -> Ok (VStr s)
-  | Fronce f -> fronce env f
-  | Ref name -> get env name
-  | Set elems ->
-      let* out =
-        List.fold_left
-          (fun acc e ->
-            let* acc = acc in
-            let* el = eval_elem env e in
-            Ok (push_unique acc el))
-          (Ok []) elems
+let coerce_undirected loc value =
+  match value.node with
+  | UndirectedEdge edge ->
+      let forward = at (Edge edge) in
+      let reverse =
+        at (Edge { left = edge.right; right = edge.left; payload = edge.payload })
       in
-      Ok (VSet out)
-  | Op (op, operands) -> eval_op env op operands
-  | Edge (t, h, ann) -> eval_edge env false t h ann
-  | UEdge (a, b, ann) -> eval_edge env true a b ann
-  | Init (name, _, args) ->
-      (* Type arguments are not read: types fully erase. *)
-      let* vs =
+      Ok
+        (at ~marker:(location_marker "coercion" loc)
+           (Set (add_unique (add_unique [] forward) reverse)))
+  | _ -> error loc "internal coercion site did not evaluate to an UndirectedEdge"
+
+let rec eval checked environment expression =
+  let* value = eval_raw checked environment expression in
+  if has_coercion checked expression.Ast.loc then coerce_undirected expression.loc value
+  else Ok value
+
+and eval_raw checked environment expression =
+  let expression_marker = Some (location_marker "value" expression.Ast.loc) in
+  match expression.Ast.it with
+  | Ast.Int value -> Ok (at ~marker:(Option.get expression_marker) (Int value))
+  | Ast.Decimal value -> Ok (at ~marker:(Option.get expression_marker) (Decimal value))
+  | Ast.String value -> Ok (at ~marker:(Option.get expression_marker) (String value))
+  | Ast.Ref name -> (
+      match Hashtbl.find_opt environment name with
+      | Some binding -> Ok binding.current
+      | None when name = "None" ->
+          Ok (at ~marker:(location_marker "variant" expression.loc) (Variant ("Option", "None", [])))
+      | None -> error expression.loc ("undefined variable '" ^ name ^ "'"))
+  | Ast.Set expressions ->
+      let* elements =
         List.fold_left
-          (fun acc a ->
-            let* acc = acc in
-            let* v = eval env a in
-            Ok (acc @ [ v ]))
-          (Ok []) args
+          (fun result element_expression ->
+            let* elements = result in
+            let* value = eval checked environment element_expression in
+            if has_coercion checked element_expression.loc then
+              match value.node with
+              | Set coerced -> Ok (union elements coerced)
+              | _ -> error element_expression.loc "coercion did not produce a set"
+            else Ok (add_unique elements value))
+          (Ok []) expressions
       in
-      Ok (VStruct (name, vs))
+      Ok (at ~marker:(location_marker "set" expression.loc) (Set elements))
+  | Ast.SetOp (operator, operands) ->
+      eval_operation checked environment expression.loc operator operands
+  | Ast.Edge (left, right, payload) ->
+      eval_edge checked environment expression.loc false left right payload
+  | Ast.UndirectedEdge (left, right, payload) ->
+      eval_edge checked environment expression.loc true left right payload
+  | Ast.Apply (name, _, arguments) ->
+      let* arguments = eval_all checked environment arguments in
+      if name = "Some" then
+        Ok
+          (at ~marker:(location_marker "variant" expression.loc)
+             (Variant ("Option", "Some", arguments)))
+      else
+        Ok
+          (at ~marker:(location_marker "struct" expression.loc)
+             (Struct (name, arguments)))
+  | Ast.Variant (enum_name, name, arguments) ->
+      let* arguments = eval_all checked environment arguments in
+      Ok
+        (at ~marker:(location_marker "variant" expression.loc)
+           (Variant (enum_name, name, arguments)))
 
-and eval_elem env (n : node) =
-  (* Only a reference carries a name, and for a graph that name is identity. *)
-  let label = match n.it with Ref r -> Some r | _ -> None in
-  let* v = eval env n in
-  Ok { label; v }
+and eval_all checked environment expressions =
+  List.fold_left
+    (fun result expression ->
+      let* values = result in
+      let* value = eval checked environment expression in
+      Ok (values @ [ value ]))
+    (Ok []) expressions
 
-and eval_matching env node =
-  env.matching <- env.matching + 1;
-  let r = eval env node in
-  env.matching <- env.matching - 1;
-  r
-
-and eval_op env op operands =
-  let sym = op_symbol op in
-  (* '^' matches in every operand; '/' matches in the subtrahends. *)
-  let match_from = match op with Inter -> 0 | Diff -> 1 | Union -> max_int in
-  let minting =
-    List.filteri (fun i _ -> i >= match_from) operands |> List.exists mints_fronce
-  in
-  if minting then Error (mint_match_err ("operand of '" ^ sym ^ "'"))
-  else
-    let eval_at i n = if i >= match_from then eval_matching env n else eval env n in
-    match operands with
-    | [] -> Ok (VSet [])
-    | first :: rest ->
-        let* fv = eval_at 0 first in
-        let* acc =
-          match as_elems fv with
-          | Some es -> Ok es
-          | None -> Error ("operand of '" ^ sym ^ "' is not a set")
-        in
-        let* out =
-          List.fold_left
-            (fun acc (i, operand) ->
-              let* acc = acc in
-              let* rv = eval_at i operand in
-              match as_elems rv with
-              | Some es -> Ok (apply_set_op op acc es)
-              | None -> Error ("operand of '" ^ sym ^ "' is not a set"))
-            (Ok acc)
-            (List.mapi (fun i o -> (i + 1, o)) rest)
-        in
-        Ok (VSet out)
-
-and eval_edge env undirected a b ann =
-  let ka, kb = if undirected then ("a", "b") else ("tail", "head") in
-  let* av = eval env a in
-  let* bv = eval env b in
+and eval_edge checked environment loc undirected left right payload =
+  let* left = eval checked environment left in
+  let* right = eval checked environment right in
   let* () =
-    List.fold_left
-      (fun acc (side, v) ->
-        let* () = acc in
-        match v with
-        | VSet _ -> Ok ()
-        | _ -> Error (side ^ " of an edge did not evaluate to a set"))
-      (Ok ()) [ (ka, av); (kb, bv) ]
+    match (left.node, right.node) with
+    | Set _, Set _ -> Ok ()
+    | _ -> error loc "edge sides must evaluate to sets"
   in
-  let* annv =
-    match ann with
+  let* payload =
+    match payload with
     | None -> Ok None
-    | Some v ->
-        let* x = eval env v in
-        Ok (Some x)
+    | Some payload ->
+        let* payload = eval checked environment payload in
+        Ok (Some payload)
   in
-  Ok (if undirected then VUEdge (av, bv, annv) else VEdge (av, bv, annv))
+  let edge = { left; right; payload } in
+  Ok
+    (at ~marker:(location_marker "edge" loc)
+       (if undirected then UndirectedEdge edge else Edge edge))
 
-(* 'g op= rhs': dispatch on g's runtime value, mirroring the checker. *)
-let eval_ext env name op rhs =
-  let sym = op_symbol op in
-  let is_match = op = Inter || op = Diff in
-  if is_match && mints_fronce rhs then
-    Error (mint_match_err ("the RHS of '" ^ sym ^ "='"))
+and eval_operation checked environment loc operator operands =
+  let* values = eval_all checked environment operands in
+  match values with
+  | [] -> error loc "set operation has no operands"
+  | first :: rest ->
+      List.fold_left
+        (fun result right ->
+          let* left = result in
+          apply_operation loc operator left right)
+        (Ok first) rest
+
+and apply_operation loc operator left right =
+  match (left.node, right.node) with
+  | Set left_elements, Set right_elements ->
+      Ok
+        (at ~marker:(Option.value left.marker ~default:(location_marker "set-op" loc))
+           (Set (set_operation operator left_elements right_elements)))
+  | Edge left_edge, Edge right_edge ->
+      let* edge = surgery loc operator left_edge right_edge in
+      Ok (at ~marker:(location_marker "edge-op" loc) (Edge edge))
+  | UndirectedEdge left_edge, UndirectedEdge right_edge ->
+      let* edge = surgery loc operator left_edge right_edge in
+      Ok (at ~marker:(location_marker "uedge-op" loc) (UndirectedEdge edge))
+  | _ -> error loc "set operator received incompatible runtime values"
+
+and surgery loc operator left right =
+  let payloads_equal =
+    match (left.payload, right.payload) with
+    | None, None -> true
+    | Some left, Some right -> equal left right
+    | _ -> false
+  in
+  if not payloads_equal then
+    error loc "edge side surgery requires equal payload values"
   else
-    let* cur = get env name in
-    let* rhs_val = if is_match then eval_matching env rhs else eval env rhs in
-    match cur with
-    | VSet acc -> (
-        match as_elems rhs_val with
-        | Some relems -> Ok (VSet (apply_set_op op acc relems))
-        | None ->
-            Error
-              (Printf.sprintf "'%s=' on %s: the RHS did not evaluate to a set" sym name))
-    (* Side surgery: the LHS keeps its payload, and the RHS must be a PLAIN
-       edge, since surgery edits sides and never annotations. *)
-    | VEdge (t, h, ann) -> (
-        match rhs_val with
-        | VEdge (rt, rh, None) ->
-            let* t' = side_op op t rt in
-            let* h' = side_op op h rh in
-            Ok (VEdge (t', h', ann))
-        | VEdge _ ->
-            Error
-              (Printf.sprintf
-                 "'%s=' on %s: the RHS of side surgery must be a plain \
-                  (unannotated) edge" sym name)
-        | _ -> Error (Printf.sprintf "'%s=' on %s: the RHS is not a directed edge" sym name))
-    | VUEdge (a, b, ann) -> (
-        match rhs_val with
-        (* Sides pair by WRITTEN order: a-with-a, b-with-b. *)
-        | VUEdge (ra, rb, None) ->
-            let* a' = side_op op a ra in
-            let* b' = side_op op b rb in
-            Ok (VUEdge (a', b', ann))
-        | VUEdge _ ->
-            Error
-              (Printf.sprintf
-                 "'%s=' on %s: the RHS of side surgery must be a plain \
-                  (unannotated) edge" sym name)
-        | _ ->
-            Error
-              (Printf.sprintf "'%s=' on %s: the RHS is not an undirected edge" sym name))
-    | _ -> Error (Printf.sprintf "'%s=' cannot apply to the value of %s" sym name)
+    match (left.left.node, left.right.node, right.left.node, right.right.node) with
+    | Set left_tail, Set left_head, Set right_tail, Set right_head ->
+        Ok
+          { left = at (Set (set_operation operator left_tail right_tail));
+            right = at (Set (set_operation operator left_head right_head));
+            payload = left.payload }
+    | _ -> error loc "edge side surgery received a non-set side"
 
-(* -- running a program ------------------------------------------------------ *)
+let update checked environment name operator expression =
+  match Hashtbl.find_opt environment name with
+  | None -> error expression.Ast.loc ("undefined variable '" ^ name ^ "'")
+  | Some binding when not binding.mutable_ ->
+      error expression.loc ("binding '" ^ name ^ "' is immutable")
+  | Some binding ->
+      let* right = eval checked environment expression in
+      let* value = apply_operation expression.loc operator binding.current right in
+      binding.current <- { value with marker = binding.current.marker };
+      Ok ()
 
-(* The coercive view, made real.
-
-   Types otherwise erase completely and every dispatch above is on a runtime
-   constructor. The one exception is UndirectedEdge <: Set<Edge>, which the
-   checker may use to accept 'let g: mut Set<Edge> = a <-> b'. If nothing in
-   the value recorded that the coercion happened, a later 'g &= ...' would
-   dispatch on the stored uedge and perform side surgery where the checker had
-   selected set mutation.
-
-   Storing the realised set at the binding closes it: every later op= finds a
-   set and takes the branch the checker chose. The Rust evaluator re-derives
-   "was this declared mut and set-shaped?" from the written syntax, in 55 lines
-   with their own alias table and a cycle guard. Here the checker's own answer
-   arrives as the declaration. *)
-let run (program : program) (declarations : (bool * Types.ty) option list) =
-  let env = { vars = []; fronces = { pins = []; next = 0 }; matching = 0 } in
-  let decl_of i = try List.nth declarations i with _ -> None in
-  let rec go i = function
-    | [] -> Ok env
-    | (stmt : stmt) :: rest -> (
-        match stmt.it with
-        (* Definitions carry no runtime value: types fully erase. *)
-        | SStruct _ | SType _ -> go (i + 1) rest
-        | SLet (name, _, value) ->
-            let* v = eval env value in
-            let v =
-              match (v, decl_of i) with
-              | VUEdge _, Some (true, ty) when Types.is_graph_set ty ->
-                  VSet (Option.get (as_elems v))
-              | _ -> v
-            in
-            bind env name v;
-            go (i + 1) rest
-        | SExt (name, op, rhs) ->
-            let* v = eval_ext env name op rhs in
-            bind env name v;
-            go (i + 1) rest)
+let run checked =
+  let environment = Hashtbl.create (List.length checked.Check.bindings) in
+  let binding_types =
+    List.fold_left
+      (fun output (binding : Check.binding) ->
+        Check.String_map.add binding.name binding output)
+      Check.String_map.empty checked.bindings
   in
-  go 0 program
+  let rec statements = function
+    | [] -> Ok environment
+    | statement :: rest -> (
+        let* () =
+          match statement.Ast.it with
+          | Ast.Let (name, _, expression) ->
+              let* value = eval checked environment expression in
+              let checked_binding = Check.String_map.find name binding_types in
+              Hashtbl.add environment name
+                { mutable_ = checked_binding.mutable_; current = value };
+              Ok ()
+          | Ast.Update (name, operator, expression) ->
+              update checked environment name operator expression
+          | Ast.Struct _ | Ast.Enum _ | Ast.Alias _ -> Ok ()
+        in
+        statements rest)
+  in
+  statements checked.program
+
+let find environment name =
+  Option.map (fun binding -> binding.current) (Hashtbl.find_opt environment name)
