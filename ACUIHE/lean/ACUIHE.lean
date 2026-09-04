@@ -12,3 +12,4 @@ import ACUIHE.Solver.ESubstitution
 import ACUIHE.Solver.Solution
 import ACUIHE.Solver.Linear
 import ACUIHE.Solver.Search
+import ACUIHE.External.Batch

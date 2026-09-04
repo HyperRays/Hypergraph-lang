@@ -1,5 +1,45 @@
 (library
  (name hypergraph)
+ (libraries yojson zarith threads)
+ (foreign_stubs
+  (language c)
+  (names lean_stubs)
+  (flags (:standard -I%{env:LEAN_PREFIX=}/include)))
+ (c_library_flags
+  -L%{env:HYPERGRAPHML_LEAN_LIB=}
+  -L%{env:ACUIHE_LEAN_LIB=}
+  -L%{env:LEAN_PACKAGES_LIB=}/mathlib/.lake/build/lib
+  -L%{env:LEAN_PACKAGES_LIB=}/plausible/.lake/build/lib
+  -L%{env:LEAN_PACKAGES_LIB=}/proofwidgets/.lake/build/lib
+  -L%{env:LEAN_PACKAGES_LIB=}/batteries/.lake/build/lib
+  -L%{env:LEAN_PACKAGES_LIB=}/aesop/.lake/build/lib
+  -L%{env:LEAN_PACKAGES_LIB=}/importGraph/.lake/build/lib
+  -L%{env:LEAN_PACKAGES_LIB=}/LeanSearchClient/.lake/build/lib
+  -L%{env:LEAN_PACKAGES_LIB=}/Qq/.lake/build/lib
+  -L%{env:LEAN_PREFIX=}/lib/lean
+  -lHypergraphML_HypergraphML
+  -lACUIHE_ACUIHE
+  -lmathlib_Mathlib
+  -lplausible_Plausible
+  -lproofwidgets_ProofWidgets
+  -lbatteries_Batteries
+  -laesop_Aesop
+  -limportGraph_ImportGraph
+  -lLeanSearchClient_LeanSearchClient
+  -lQq_Qq
+  -lLake_shared
+  -lleanshared
+  -Wl,-rpath,%{env:HYPERGRAPHML_LEAN_LIB=}
+  -Wl,-rpath,%{env:ACUIHE_LEAN_LIB=}
+  -Wl,-rpath,%{env:LEAN_PACKAGES_LIB=}/mathlib/.lake/build/lib
+  -Wl,-rpath,%{env:LEAN_PACKAGES_LIB=}/plausible/.lake/build/lib
+  -Wl,-rpath,%{env:LEAN_PACKAGES_LIB=}/proofwidgets/.lake/build/lib
+  -Wl,-rpath,%{env:LEAN_PACKAGES_LIB=}/batteries/.lake/build/lib
+  -Wl,-rpath,%{env:LEAN_PACKAGES_LIB=}/aesop/.lake/build/lib
+  -Wl,-rpath,%{env:LEAN_PACKAGES_LIB=}/importGraph/.lake/build/lib
+  -Wl,-rpath,%{env:LEAN_PACKAGES_LIB=}/LeanSearchClient/.lake/build/lib
+  -Wl,-rpath,%{env:LEAN_PACKAGES_LIB=}/Qq/.lake/build/lib
+  -Wl,-rpath,%{env:LEAN_PREFIX=}/lib/lean)
  (preprocess (pps ppx_deriving.ord ppx_deriving.eq)))
 (ocamllex lexer)
 (menhir

@@ -8,6 +8,7 @@
 ; them. One implementation needs neither.
 (executable
  (name main)
+ (enabled_if false)
  (modes js wasm)
  (libraries hypergraph js_of_ocaml)
  (preprocess (pps js_of_ocaml-ppx)))
