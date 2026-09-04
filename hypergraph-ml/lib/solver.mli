@@ -21,5 +21,5 @@ val solve : ?rules:replacement list -> constraint_ list ->
 val check_assignment : ?rules:replacement list -> constraint_ list ->
   assignment -> (bool, error) result
 
+val substitute : assignment -> term -> term
 val pp_term : Format.formatter -> term -> unit
-

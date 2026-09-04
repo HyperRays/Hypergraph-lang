@@ -1,722 +1,756 @@
-(* The checker: inference over values, struct instantiation, and the judgment
-   each statement earns.
+module String_map = Map.Make (String)
 
-   A statement is checked against an environment and returns its errors and the
-   environment the next statement sees. Nothing here reads syntax: 'interp' has
-   already turned every written type into a type. *)
+type diagnostic = { loc : Ast.loc; message : string }
 
-open Ast
-open Types
-open Interp
+type declaration_kind = Struct_kind | Enum_kind
 
-(* Haskell's list operations on types, which need the structural equality
-   'equal' rather than OCaml's polymorphic one. *)
-let nub xs =
-  List.rev
-    (List.fold_left
-       (fun acc x -> if List.exists (equal x) acc then acc else x :: acc)
-       [] xs)
+type declaration = {
+  kind : declaration_kind;
+  name : string;
+  parameters : string list;
+  members : (string * Ast.ty) list;
+}
 
-let intersect xs ys = List.filter (fun x -> List.exists (equal x) ys) xs
+type binding = {
+  name : string;
+  mutable_ : bool;
+  ty : Types.t;
+  solved_type : Solver.term;
+  marker : Types.t;
+  loc : Ast.loc;
+}
 
-(* Haskell's zipWith stops at the shorter list. List.map2 raises instead, and
-   guarding by length and skipping is not the same thing: a struct applied to
-   too few arguments still has its common prefix checked, so skipping loses a
-   real field-type error. *)
-let rec zip_with f a b =
-  match (a, b) with x :: xs, y :: ys -> f x y :: zip_with f xs ys | _ -> []
+type checked = {
+  program : Ast.program;
+  bindings : binding list;
+  declarations : declaration list;
+  assignment : Solver.assignment;
+  coercions : Ast.loc list;
+}
 
-(* Removes the FIRST occurrence of each y, as Haskell's (\\) does. *)
-let difference xs ys =
-  List.fold_left
-    (fun acc y ->
-      let rec drop = function
-        | [] -> []
-        | x :: rest -> if equal x y then rest else x :: drop rest
-      in
-      drop acc)
-    xs ys
+type pending_binding = {
+  pending_name : string;
+  pending_mutable : bool;
+  pending_type : Types.t;
+  pending_marker : Types.t;
+  pending_loc : Ast.loc;
+}
 
-let counts xs =
-  List.sort_uniq compare xs
-  |> List.map (fun x -> (x, List.length (List.filter (( = ) x) xs)))
+type bound = { mutable_ : bool; ty : Types.t; marker : Types.t }
 
-let param_list = function
-  | [] -> ""
-  | ps -> "<" ^ String.concat ", " ps ^ ">"
+type row = { constraint_ : Solver.constraint_; loc : Ast.loc; reason : string }
 
-(* Shared by every parameter-binding definition, type and struct alike. *)
-let param_checks owner params =
-  let dups = List.filter_map (fun (p, n) -> if n > 1 then Some p else None)
-      (counts params) in
-  (if dups = [] then []
-   else [ "duplicate type parameter(s) in " ^ owner ^ ": " ^ String.concat " " dups ])
-  @ List.filter_map
-      (fun p ->
-        if List.mem p builtin_names then
-          Some ("type parameter '" ^ p ^ "' shadows the built-in type '" ^ p ^ "'")
-        else None)
-      params
+type pending_coercion = {
+  lower : Solver.term;
+  upper : Solver.term;
+  loc : Ast.loc;
+}
 
-(* -- parameters in a type --------------------------------------------------- *)
+type alias = { alias_parameters : string list; alias_body : Ast.ty }
 
-let rec occurs_param p = function
-  | TParam q -> p = q
-  | TSet cs -> List.exists (occurs_param p) cs
-  | TEdge (Some t) | TUndirectedEdge (Some t) -> occurs_param p t
-  | TStruct (_, args) -> List.exists (List.exists (occurs_param p)) args
-  | _ -> false
+type state = {
+  mutable declarations : declaration String_map.t;
+  mutable aliases : alias String_map.t;
+  mutable variables : bound String_map.t;
+  mutable pending_bindings : pending_binding list;
+  mutable diagnostics : diagnostic list;
+  mutable rows : row list;
+  mutable coercions : pending_coercion list;
+  mutable fresh_variables : (string * Ast.loc) list;
+  expression_types : (int * int, Types.t) Hashtbl.t;
+  mutable next_fresh : int;
+  mutable next_marker : int;
+}
 
-let rec has_param = function
-  | TParam _ -> true
-  | TSet cs -> List.exists has_param cs
-  | TEdge (Some t) | TUndirectedEdge (Some t) -> has_param t
-  | TStruct (_, args) -> List.exists (List.exists has_param) args
-  | _ -> false
+let builtins =
+  [ "Int"; "Decimal"; "String"; "EmptySet"; "Set"; "Option"; "Edge";
+    "UndirectedEdge"; "Graph"; "Opaque"; "Eq"; "mut" ]
 
-(* -- inference evidence ----------------------------------------------------- *)
+let empty_state () =
+  { declarations = String_map.empty;
+    aliases = String_map.empty;
+    variables = String_map.empty;
+    pending_bindings = [];
+    diagnostics = [];
+    rows = [];
+    coercions = [];
+    fresh_variables = [];
+    expression_types = Hashtbl.create 128;
+    next_fresh = 0;
+    next_marker = 0 }
 
-(* Match a rigid field pattern against a ground argument type. Tolerant by
-   design, so a shape mismatch yields no evidence and acceptance is decided
-   afterwards by the ordinary sub check on the instantiated field. The empty
-   set type is the unit of evidence, sitting below every set type, so it pins
-   nothing.
+let diagnose state loc message =
+  state.diagnostics <- { loc; message } :: state.diagnostics
 
-   Routed through arg_canon so inference and annotation build the same
-   argument: a value's type is always already merged, since '{1, "one"}' is one
-   Set<Int> + Set<String>, so without distributing here it could never match an
-   argument written in the distributed spelling. *)
-let rec solve pat ground =
-  match (pat, ground) with
-  | TParam p, g ->
-      if equal g (TSet []) || equal g TUnknown then [] else [ (p, arg_canon [ g ]) ]
-  | TSet cs, TSet gs ->
-      let is_bare_param = function TParam _ -> true | _ -> false in
-      let bare, rest = List.partition is_bare_param cs in
-      let concrete = List.filter (fun c -> not (has_param c)) rest in
-      let nested = List.filter has_param rest in
-      let remainder = arg_canon (difference gs concrete) in
-      let nested_ev =
-        List.concat_map (fun p -> List.concat_map (fun g -> solve p g) gs) nested
-      in
-      nested_ev
-      @ (match bare with
-        | [ TParam p ] when remainder <> [] -> [ (p, remainder) ]
-        | _ -> [])
-  | TEdge (Some p), TEdge (Some g) -> solve p g
-  | TUndirectedEdge (Some p), TUndirectedEdge (Some g) -> solve p g
-  | TStruct (n, pargs), TStruct (n', gargs) when n = n' ->
-      let solve_arg pat g =
-        match pat with
-        | [ TParam p ] when g <> [] && not (List.equal equal g [ TSet [] ]) ->
-            [ (p, g) ]
-        | _ -> List.concat_map (fun pp -> List.concat_map (solve pp) g) pat
-      in
-      List.concat (List.map2 solve_arg pargs gargs)
-  | _ -> []
+let key (loc : Ast.loc) = (loc.line, loc.column)
 
-(* -- the minting discipline ------------------------------------------------- *)
+let remember state expression ty =
+  Hashtbl.replace state.expression_types (key expression.Ast.loc) ty;
+  ty
 
-(* A minted token can only introduce a new value and never match an existing
-   one, since it is guaranteed unequal to everything that exists. Positions
-   whose whole purpose is matching reject it. *)
-let rec mints_fronce (n : node) =
-  match n.it with
-  | Fronce None -> true
-  | Set ns | Op (_, ns) | Init (_, _, ns) -> List.exists mints_fronce ns
-  | Edge (a, b, ann) | UEdge (a, b, ann) ->
-      List.exists mints_fronce (a :: b :: Option.to_list ann)
-  | _ -> false
+let expression_type state expression =
+  Option.value
+    (Hashtbl.find_opt state.expression_types (key expression.Ast.loc))
+    ~default:Types.Error
 
-let mint_match_err ctx =
-  [ ctx ^ " mints a token with '#', which can never match an existing value — \
-           pin it (#N) or bind the value to a name first" ]
+let fresh state loc purpose =
+  let name = Printf.sprintf "$%s:%d" purpose state.next_fresh in
+  state.next_fresh <- state.next_fresh + 1;
+  state.fresh_variables <- (name, loc) :: state.fresh_variables;
+  Types.Variable name
 
-(* -- inference -------------------------------------------------------------- *)
-
-(* A name not yet bound, for suggestions: the base with the first free numeric
-   suffix, since bindings are single-assignment and the base itself is taken. *)
-let fresh_name env base =
-  let rec go i =
-    let n = base ^ string_of_int i in
-    if SMap.mem n env.vars then go (i + 1) else n
+let marker state loc purpose =
+  let name =
+    Printf.sprintf "$Marker:%s:%d:%d:%d" purpose loc.Ast.line loc.column
+      state.next_marker
   in
-  go 1
+  state.next_marker <- state.next_marker + 1;
+  Types.Named (name, [])
 
-(* Vertex sets: edge-valued components are not vertices, though graph names
-   are. *)
-let side_errs lbl = function
-  | TUnknown -> []
-  | TUndirectedEdge _ ->
-      [ lbl ^ " of an edge must be a vertex set, but contains edges" ]
-  | TSet cs ->
-      let is_bare_edge = function
-        | TEdge _ | TUndirectedEdge _ -> true
-        | _ -> false
-      in
-      if List.exists is_bare_edge cs then
-        [ lbl ^ " of an edge must be a vertex set, but contains edges" ]
-      else []
-  | other ->
-      [ lbl ^ " of an edge: found type " ^ pretty other
-        ^ ", needed a set of vertices" ]
+let duplicate_names values =
+  let counts = Hashtbl.create (List.length values) in
+  List.iter
+    (fun value ->
+      Hashtbl.replace counts value
+        (1 + Option.value (Hashtbl.find_opt counts value) ~default:0))
+    values;
+  Hashtbl.fold
+    (fun value count output -> if count > 1 then value :: output else output)
+    counts []
+  |> List.sort String.compare
 
-let rec infer env (n : node) =
-  match n.it with
-  | Int _ -> ([], TInt)
-  | Dec _ -> ([], TDec)
-  | Str _ -> ([], TStr)
-  | Fronce _ -> ([], TFronce)
-  | Ref name -> (
-      match SMap.find_opt name env.vars with
-      | Some (_, t) -> ([], t) (* reading a binding decays mut *)
-      | None -> ([ "undefined variable " ^ name ], TUnknown))
-  | Set elems ->
-      let results = List.map (infer_elem env) elems in
-      (List.concat_map fst results, canon (List.map snd results))
-  | Op (op, operands) -> infer_op env op operands
-  | Edge (t, h, ann) ->
-      let te, tt = infer env t in
-      let he, ht = infer env h in
-      let ae, ann_ty = infer_ann env ann in
-      ( te @ he @ ae @ side_errs "tail" tt @ side_errs "head" ht,
-        TEdge ann_ty )
-  | UEdge (a, b, ann) ->
-      let ae, at = infer env a in
-      let be, bt = infer env b in
-      let ne, ann_ty = infer_ann env ann in
-      ( ae @ be @ ne @ side_errs "side" at @ side_errs "side" bt,
-        TUndirectedEdge ann_ty )
-  | Init (s, targs, args) -> infer_init env s targs args
+let validate_parameters state loc owner parameters =
+  duplicate_names parameters
+  |> List.iter (fun parameter ->
+       diagnose state loc
+         (Printf.sprintf "duplicate type parameter '%s' in %s" parameter owner));
+  List.iter
+    (fun parameter ->
+      if List.mem parameter builtins then
+        diagnose state loc
+          (Printf.sprintf "type parameter '%s' shadows a built-in type" parameter))
+    parameters
 
-and infer_op env op operands =
-  let results = List.map (infer env) operands in
-  let errs = List.concat_map fst results and tys = List.map snd results in
-  (* subsumption: a uedge IS a two-edge set, payload preserved *)
-  let as_set = function
-    | TSet cs -> Some cs
-    | TUndirectedEdge ann -> Some [ TEdge ann ]
-    | TUnknown -> Some []
+let parameter_map parameters arguments =
+  if List.length parameters <> List.length arguments then []
+  else List.combine parameters arguments
+
+let rec resolve_type state ?(substitution = []) ?(seen = []) parameters syntax =
+  let resolve = resolve_type state ~substitution ~seen parameters in
+  match syntax.Ast.it with
+  | Ast.TySum values -> Types.sum (List.map resolve values)
+  | Ast.TyName name -> (
+      match List.assoc_opt name substitution with
+      | Some ty -> ty
+      | None when List.mem name parameters -> Types.Parameter name
+      | None -> resolve_named state ~substitution ~seen parameters syntax.loc name [])
+  | Ast.TyApply (name, arguments) ->
+      let arguments = List.map resolve arguments in
+      resolve_named state ~substitution ~seen parameters syntax.loc name arguments
+
+and resolve_named state ~substitution ~seen parameters loc name arguments =
+  let arity expected build =
+    if List.length arguments = expected then build arguments
+    else (
+      diagnose state loc
+        (Printf.sprintf "type '%s' expects %d argument(s), got %d" name expected
+           (List.length arguments));
+      Types.Error)
+  in
+  match name with
+  | "Int" -> arity 0 (fun _ -> Types.Int)
+  | "Decimal" -> arity 0 (fun _ -> Types.Decimal)
+  | "String" -> arity 0 (fun _ -> Types.String)
+  | "EmptySet" -> arity 0 (fun _ -> Types.Empty)
+  | "Set" -> arity 1 (function [ element ] -> Types.Set element | _ -> assert false)
+  | "Option" -> arity 1 (function [ payload ] -> Types.Option payload | _ -> assert false)
+  | "Edge" ->
+      arity 3 (function
+        | [ tail; head; payload ] ->
+            Types.Edge (Types.Directed, tail, head, payload)
+        | _ -> assert false)
+  | "UndirectedEdge" ->
+      arity 3 (function
+        | [ left; right; payload ] ->
+            Types.Edge (Types.Undirected, left, right, payload)
+        | _ -> assert false)
+  | "Graph" ->
+      arity 3 (function
+        | [ tail; head; payload ] ->
+            Types.Set
+              (Types.sum
+                 [ Types.Edge (Types.Directed, tail, head, payload);
+                   Types.Edge (Types.Undirected, tail, head, payload) ])
+        | _ -> assert false)
+  | "Opaque" | "Eq" | "mut" ->
+      diagnose state loc ("type '" ^ name ^ "' is internal and cannot be written");
+      Types.Error
+  | _ -> (
+      match String_map.find_opt name state.aliases with
+      | Some alias ->
+          if List.mem name seen then (
+            diagnose state loc ("recursive type alias '" ^ name ^ "'");
+            Types.Error)
+          else if List.length arguments <> List.length alias.alias_parameters then (
+            diagnose state loc
+              (Printf.sprintf "type alias '%s' expects %d argument(s), got %d" name
+                 (List.length alias.alias_parameters) (List.length arguments));
+            Types.Error)
+          else
+            resolve_type state
+              ~substitution:(parameter_map alias.alias_parameters arguments @ substitution)
+              ~seen:(name :: seen) parameters alias.alias_body
+      | None -> (
+          match String_map.find_opt name state.declarations with
+          | None ->
+              diagnose state loc ("unknown type '" ^ name ^ "'");
+              Types.Error
+          | Some declaration ->
+              if List.length arguments <> List.length declaration.parameters then (
+                diagnose state loc
+                  (Printf.sprintf "type '%s' expects %d argument(s), got %d" name
+                     (List.length declaration.parameters) (List.length arguments));
+                Types.Error)
+              else declaration_type state declaration arguments))
+
+and declaration_type state declaration arguments =
+  let substitution = parameter_map declaration.parameters arguments in
+  Types.Named
+    (declaration.name,
+     List.map
+       (fun (label, syntax) ->
+         (label,
+          resolve_type state ~substitution declaration.parameters syntax))
+       declaration.members)
+
+let add_row state loc reason constraint_ =
+  state.rows <- { constraint_; loc; reason } :: state.rows
+
+let equal_constraint state loc reason left right =
+  if left = Types.Error || right = Types.Error || Types.equal left right then ()
+  else if not (Types.has_variable left || Types.has_variable right) then
+    diagnose state loc
+      (Printf.sprintf "%s: %s is not equal to %s" reason (Types.pretty left)
+         (Types.pretty right))
+  else
+    add_row state loc reason
+      (Solver.Equal (Types.to_solver left, Types.to_solver right))
+
+let compatible_edge_parameters state loc left_tail left_head left_payload
+    right_tail right_head right_payload =
+  equal_constraint state loc "edge tail types differ" left_tail right_tail;
+  equal_constraint state loc "edge head types differ" left_head right_head;
+  equal_constraint state loc "edge payload types differ" left_payload right_payload
+
+let add_coercion state loc actual expected =
+  state.coercions <-
+    { lower = Types.to_solver actual; upper = Types.to_solver expected; loc }
+    :: state.coercions
+
+let rec constrain_types state loc actual expected reason =
+  if actual = Types.Error || expected = Types.Error || Types.equal actual expected then ()
+  else
+    match (actual, expected) with
+    | Types.Empty, Types.Variable _ -> ()
+    | Types.Variable _, _ | _, Types.Variable _ ->
+        equal_constraint state loc reason actual expected
+    | Types.Set actual, Types.Set expected
+    | Types.Option actual, Types.Option expected ->
+        constrain_types state loc actual expected reason
+    | Types.Edge (actual_kind, actual_tail, actual_head, actual_payload),
+      Types.Edge (expected_kind, expected_tail, expected_head, expected_payload)
+      when actual_kind = expected_kind ->
+        constrain_types state loc actual_tail expected_tail reason;
+        constrain_types state loc actual_head expected_head reason;
+        constrain_types state loc actual_payload expected_payload reason
+    | Types.Named (actual_name, actual_members),
+      Types.Named (expected_name, expected_members)
+      when actual_name = expected_name
+           && List.length actual_members = List.length expected_members
+           && List.for_all2
+                (fun (actual_label, _) (expected_label, _) ->
+                  actual_label = expected_label)
+                actual_members expected_members ->
+        List.iter2
+          (fun (_, actual) (_, expected) ->
+            constrain_types state loc actual expected reason)
+          actual_members expected_members
+    | Types.Opaque (actual_hidden, actual_marker),
+      Types.Opaque (expected_hidden, expected_marker) ->
+        constrain_types state loc actual_hidden expected_hidden reason;
+        constrain_types state loc actual_marker expected_marker reason
+    | _ -> (
+        match Types.below actual expected with
+        | Types.No ->
+            diagnose state loc
+              (Printf.sprintf "%s: found %s, expected %s" reason
+                 (Types.pretty actual) (Types.pretty expected))
+        | Types.Yes -> ()
+        | Types.Deferred ->
+            add_row state loc reason
+              (Solver.Below (Types.to_solver actual, Types.to_solver expected)))
+
+let rec constrain state expression actual expected reason =
+  match (actual, expected, expression.Ast.it) with
+  | Types.Set _, Types.Set expected_element, Ast.Set elements ->
+      List.iter
+        (fun element ->
+          let actual_element = expression_type state element in
+          let expected_element =
+            match (actual_element, expected_element) with
+            | Types.Edge (Types.Undirected, _, _, _),
+              Types.Edge (Types.Directed, _, _, _) -> Types.Set expected_element
+            | _ -> expected_element
+          in
+          constrain state element actual_element expected_element reason)
+        elements
+  | Types.Edge (Types.Undirected, left_tail, left_head, left_payload),
+    Types.Set
+      (Types.Edge (Types.Directed, right_tail, right_head, right_payload)), _ ->
+      compatible_edge_parameters state expression.loc left_tail left_head left_payload
+        right_tail right_head right_payload;
+      add_coercion state expression.loc actual expected
+  | _ -> constrain_types state expression.loc actual expected reason
+
+let instantiate state loc parameters explicit =
+  match explicit with
+  | None -> List.map (fun parameter -> fresh state loc parameter) parameters
+  | Some arguments ->
+      if List.length parameters <> List.length arguments then (
+        diagnose state loc
+          (Printf.sprintf "expected %d type argument(s), got %d"
+             (List.length parameters) (List.length arguments));
+        List.map (fun parameter -> fresh state loc parameter) parameters)
+      else
+        List.map2
+          (fun parameter -> function
+            | Some syntax -> resolve_type state [] syntax
+            | None -> fresh state loc parameter)
+          parameters arguments
+
+let marker_for_expression state expression =
+  match expression.Ast.it with
+  | Ast.Ref name -> (
+      match String_map.find_opt name state.variables with
+      | Some binding -> binding.marker
+      | None -> marker state expression.loc "unbound")
+  | _ -> marker state expression.loc "value"
+
+let protect_for_equality state expression ty =
+  Types.protect_graphs (marker_for_expression state expression) ty
+
+let rec infer state expression =
+  let inferred =
+    match expression.Ast.it with
+    | Ast.Int _ -> Types.Int
+    | Ast.Decimal _ -> Types.Decimal
+    | Ast.String _ -> Types.String
+    | Ast.Ref name -> infer_reference state expression name
+    | Ast.Set elements ->
+        Types.Set
+          (Types.sum
+             (List.map
+                (fun element ->
+                  infer state element |> protect_for_equality state element)
+                elements))
+    | Ast.SetOp (operator, operands) -> infer_operation state expression operator operands
+    | Ast.Edge (tail, head, payload) ->
+        infer_edge state expression Types.Directed tail head payload
+    | Ast.UndirectedEdge (left, right, payload) ->
+        infer_edge state expression Types.Undirected left right payload
+    | Ast.Apply (name, explicit, arguments) ->
+        infer_application state expression name explicit arguments
+    | Ast.Variant (enum_name, variant_name, arguments) ->
+        infer_variant state expression enum_name variant_name arguments
+  in
+  remember state expression inferred
+
+and infer_reference state expression name =
+  match String_map.find_opt name state.variables with
+  | Some binding -> binding.ty
+  | None when name = "None" -> infer_variant state expression "Option" "None" []
+  | None ->
+      diagnose state expression.loc ("undefined variable '" ^ name ^ "'");
+      Types.Error
+
+and infer_edge state expression kind left right payload =
+  let left_type = infer state left and right_type = infer state right in
+  let side label side expression_type =
+    match Types.as_set expression_type with
+    | Some element -> element
+    | None ->
+        diagnose state side.Ast.loc
+          (Printf.sprintf "%s of edge has type %s, expected a Set<...>" label
+             (Types.pretty expression_type));
+        Types.Error
+  in
+  let tail = side "left side" left left_type in
+  let head = side "right side" right right_type in
+  let payload =
+    match payload with
+    | None -> Types.Empty
+    | Some payload -> infer state payload |> protect_for_equality state payload
+  in
+  ignore expression;
+  Types.Edge (kind, tail, head, payload)
+
+and infer_application state expression name explicit arguments =
+  if name = "Some" then infer_variant state expression "Option" "Some" arguments
+  else
+    match String_map.find_opt name state.declarations with
+    | Some ({ kind = Struct_kind; _ } as declaration) ->
+        let parameters = instantiate state expression.loc declaration.parameters explicit in
+        let substitution = parameter_map declaration.parameters parameters in
+        let fields = declaration.members in
+        if List.length fields <> List.length arguments then
+          diagnose state expression.loc
+            (Printf.sprintf "struct %s expects %d value argument(s), got %d" name
+               (List.length fields) (List.length arguments));
+        List.iter2
+          (fun (label, syntax) argument ->
+            let actual = infer state argument in
+            let expected =
+              resolve_type state ~substitution declaration.parameters syntax
+            in
+            constrain state argument actual expected ("field '" ^ label ^ "'"))
+          (List.filteri (fun index _ -> index < List.length arguments) fields)
+          (List.filteri (fun index _ -> index < List.length fields) arguments);
+        declaration_type state declaration parameters
+    | Some _ ->
+        diagnose state expression.loc
+          ("'" ^ name ^ "' is an enum; construct a variant with " ^ name ^ "::Variant");
+        Types.Error
+    | None ->
+        diagnose state expression.loc ("unknown struct constructor '" ^ name ^ "'");
+        Types.Error
+
+and infer_variant state expression enum_name variant_name arguments =
+  if enum_name = "Option" then
+    let parameter = fresh state expression.loc "Option" in
+    (match variant_name with
+     | "Some" ->
+         if List.length arguments <> 1 then
+           diagnose state expression.loc
+             (Printf.sprintf "Option::Some expects 1 argument, got %d"
+                (List.length arguments));
+         Option.iter
+           (fun argument ->
+             let actual = infer state argument in
+             constrain state argument actual parameter "Option::Some payload")
+           (List.nth_opt arguments 0)
+     | "None" ->
+         if arguments <> [] then
+           diagnose state expression.loc "Option::None does not take arguments"
+     | _ -> diagnose state expression.loc ("unknown Option variant '" ^ variant_name ^ "'"));
+    Types.Option parameter
+  else
+    match String_map.find_opt enum_name state.declarations with
+    | Some ({ kind = Enum_kind; _ } as declaration) ->
+        let parameters = instantiate state expression.loc declaration.parameters None in
+        let substitution = parameter_map declaration.parameters parameters in
+        let prefix = variant_name ^ ":" in
+        let payload =
+          List.filter
+            (fun (label, _) ->
+              label = variant_name
+              || (String.length label >= String.length prefix
+                 && String.sub label 0 (String.length prefix) = prefix))
+            declaration.members
+        in
+        let constructor_payload =
+          match payload with
+          | [ (label, { Ast.it = Ast.TyName "EmptySet"; _ }) ]
+            when label = variant_name -> []
+          | payload -> payload
+        in
+        if payload = [] then
+          diagnose state expression.loc
+            (Printf.sprintf "enum %s has no variant '%s'" enum_name variant_name)
+        else (
+          if List.length constructor_payload <> List.length arguments then
+            diagnose state expression.loc
+              (Printf.sprintf "%s::%s expects %d argument(s), got %d" enum_name
+                 variant_name (List.length constructor_payload) (List.length arguments));
+          List.iter2
+            (fun (_, syntax) argument ->
+              let actual = infer state argument in
+              let expected =
+                resolve_type state ~substitution declaration.parameters syntax
+              in
+              constrain state argument actual expected
+                (enum_name ^ "::" ^ variant_name ^ " payload"))
+            (List.filteri
+               (fun index _ -> index < List.length arguments)
+               constructor_payload)
+            (List.filteri
+               (fun index _ -> index < List.length constructor_payload)
+               arguments));
+        declaration_type state declaration parameters
+    | Some _ ->
+        diagnose state expression.loc ("'" ^ enum_name ^ "' is not an enum");
+        Types.Error
+    | None ->
+        diagnose state expression.loc ("unknown enum '" ^ enum_name ^ "'");
+        Types.Error
+
+and infer_operation state expression operator operands =
+  let types = List.map (infer state) operands in
+  let as_set operand ty =
+    match ty with
+    | Types.Set element -> Some element
+    | Types.Edge (Types.Undirected, tail, head, payload) ->
+        let upper =
+          Types.Set (Types.Edge (Types.Directed, tail, head, payload))
+        in
+        add_coercion state operand.Ast.loc ty upper;
+        Some (Types.Edge (Types.Directed, tail, head, payload))
     | _ -> None
   in
-  let sym = op_symbol op in
-  (* '^' matches in every operand; '/' matches in the subtrahends. *)
-  let match_pos =
-    match op with
-    | Inter -> operands
-    | Diff -> ( match operands with [] -> [] | _ :: rest -> rest)
-    | Union -> []
+  let set_types = List.map2 as_set operands types in
+  if List.for_all Option.is_some set_types then
+    let elements = List.map Option.get set_types in
+    (match elements with
+     | [] -> Types.Set Types.Empty
+     | first :: rest ->
+         Types.Set (List.fold_left (Types.apply_set_operator operator) first rest))
+  else
+    match types with
+    | Types.Edge (kind, tail, head, payload) :: rest
+      when List.for_all
+             (function Types.Edge (other, _, _, _) -> kind = other | _ -> false)
+             rest ->
+        List.fold_left
+          (fun accumulated next ->
+            match (accumulated, next) with
+            | Types.Edge (kind, left_tail, left_head, left_payload),
+              Types.Edge (_, right_tail, right_head, right_payload) ->
+                equal_constraint state expression.loc
+                  "edge surgery requires equal payload types" left_payload right_payload;
+                Types.Edge
+                  (kind,
+                   Types.apply_set_operator operator left_tail right_tail,
+                   Types.apply_set_operator operator left_head right_head,
+                   left_payload)
+            | _ -> Types.Error)
+          (Types.Edge (kind, tail, head, payload)) rest
+    | _ ->
+        diagnose state expression.loc
+          ("operator '" ^ Ast.op_symbol operator
+         ^ "' requires only sets or only edges of the same kind");
+        Types.Error
+
+let valid_new_name state loc name kind =
+  if List.mem name builtins then (
+    diagnose state loc (kind ^ " name '" ^ name ^ "' is reserved");
+    false)
+  else if String_map.mem name state.declarations || String_map.mem name state.aliases then (
+    diagnose state loc ("duplicate type declaration '" ^ name ^ "'");
+    false)
+  else true
+
+let declare_struct state statement name parameters fields =
+  validate_parameters state statement.Ast.loc ("struct " ^ name) parameters;
+  duplicate_names (List.map (fun field -> field.Ast.field_name) fields)
+  |> List.iter (fun field ->
+       diagnose state statement.loc ("duplicate field '" ^ field ^ "' in struct " ^ name));
+  let declaration =
+    { kind = Struct_kind;
+      name;
+      parameters;
+      members = List.map (fun field -> (field.Ast.field_name, field.field_type)) fields }
   in
-  let mint_errs =
-    if List.exists mints_fronce match_pos then
-      mint_match_err ("operand of '" ^ sym ^ "'")
-    else []
+  if valid_new_name state statement.loc name "struct" then
+    state.declarations <- String_map.add name declaration state.declarations;
+  List.iter
+    (fun field -> ignore (resolve_type state parameters field.Ast.field_type))
+    fields
+
+let declare_enum state statement name parameters variants =
+  validate_parameters state statement.Ast.loc ("enum " ^ name) parameters;
+  duplicate_names (List.map (fun variant -> variant.Ast.variant_name) variants)
+  |> List.iter (fun variant ->
+       diagnose state statement.loc ("duplicate variant '" ^ variant ^ "' in enum " ^ name));
+  let members =
+    List.concat_map
+      (fun variant ->
+        match variant.Ast.variant_payload with
+        | [] -> [ (variant.variant_name, Ast.at variant.variant_loc (Ast.TyName "EmptySet")) ]
+        | payload ->
+            List.mapi
+              (fun index ty -> (Printf.sprintf "%s:%d" variant.variant_name index, ty))
+              payload)
+      variants
   in
-  let op_errs =
-    mint_errs
-    @ List.filter_map
-        (fun t ->
-          if as_set t = None then
-            Some
-              ("operand of '" ^ sym ^ "': found type " ^ pretty t
-             ^ ", needed a set type")
-          else None)
-        tys
-  in
-  let compss = List.filter_map as_set tys in
-  let comps =
-    match (compss, op) with
-    | [], _ -> []
-    | c :: cs, Union -> List.fold_left (fun a b -> nub (a @ b)) c cs
-    | c :: cs, Inter -> List.fold_left intersect c cs
-    | c :: _, Diff -> c (* the left operand's components *)
-  in
-  (errs @ op_errs, canon comps)
+  let declaration = { kind = Enum_kind; name; parameters; members } in
+  if valid_new_name state statement.loc name "enum" then
+    state.declarations <- String_map.add name declaration state.declarations;
+  List.iter
+    (fun variant ->
+      List.iter (fun ty -> ignore (resolve_type state parameters ty))
+        variant.Ast.variant_payload)
+    variants
 
-(* The payload of an edge literal: any value type except graphs, since edge
-   equality includes the payload and comparison never descends into a graph. *)
-and infer_ann env = function
-  | None -> ([], None)
-  | Some n ->
-      let es, t = infer env n in
-      let poison =
-        if mentions_graph env [] t || is_graph_set t then
-          [ "an edge payload cannot contain graphs (found type " ^ pretty t ^ ")" ]
-        else []
-      in
-      (es @ poison, Some t)
+let declare_alias state statement name parameters body =
+  validate_parameters state statement.Ast.loc ("alias " ^ name) parameters;
+  if valid_new_name state statement.loc name "alias" then (
+    ignore (resolve_type state parameters body);
+    state.aliases <-
+      String_map.add name { alias_parameters = parameters; alias_body = body }
+        state.aliases)
 
-(* One set element: its component type, plus the nominal discipline. A
-   graph-typed element must be a name bound non-mut, since identity is the name
-   and the binding freezes the value. Struct values reaching into graphs would
-   need deep comparison, so they are not elements either. *)
-and infer_elem env (node : node) =
-  let errs, t = infer env node in
-  let checks =
-    if is_graph_set t then
-      match node.it with
-      | Ref n -> (
-          match SMap.find_opt n env.vars with
-          | Some (true, _) ->
-              [ "mut Graph " ^ n ^ " cannot be a set element; snapshot it \
-                 first: let " ^ fresh_name env n ^ ": Graph = " ^ n ]
-          | _ -> [])
-      | _ ->
-          [ "an anonymous graph value cannot be a set element; bind it to a \
-             name with let first" ]
-    else
-      match t with
-      | TStruct _ when mentions_graph env [] t ->
-          [ "a struct value containing graphs cannot be a set element" ]
-      | _ -> []
-  in
-  (errs @ checks, embed t)
+let combine_update state loc operator left right =
+  match (left, right) with
+  | Types.Set left, Types.Set right ->
+      Types.Set (Types.apply_set_operator operator left right)
+  | Types.Edge (kind, left_tail, left_head, left_payload),
+    Types.Edge (other, right_tail, right_head, right_payload)
+    when kind = other ->
+      equal_constraint state loc "edge surgery requires equal payload types" left_payload
+        right_payload;
+      Types.Edge
+        (kind, Types.apply_set_operator operator left_tail right_tail,
+         Types.apply_set_operator operator left_head right_head, left_payload)
+  | _ ->
+      diagnose state loc
+        ("operator '" ^ Ast.op_symbol operator
+       ^ "=' requires matching set or edge operands");
+      Types.Error
 
-(* Struct init: solve the instantiation, then verify. Explicit arguments and
-   '_' holes come first, and every hole is solved from unification evidence,
-   bottom-up only, the same as an unannotated let. With the solution complete,
-   fields instantiate and the ordinary ground sub check runs. Solving never
-   consults subtyping. *)
-and infer_init env s targs args =
-  let results = List.map (infer env) args in
-  let errs = List.concat_map fst results in
-  let arg_tys = List.map snd results in
-  match SMap.find_opt s env.structs with
-  | None ->
-      if List.mem s env.invalid_structs then
-        ( errs
-          @ [ "cannot use struct " ^ s ^ " because its definition was invalid" ],
-          TUnknown )
-      else (errs @ [ "unknown struct " ^ s ], TUnknown)
-  | Some (params, fields) ->
-      let arity =
-        if List.length fields <> List.length args then
-          [ Printf.sprintf "struct %s expects %d argument(s), got %d" s
-              (List.length fields) (List.length args) ]
-        else []
+let check_statement state statement =
+  match statement.Ast.it with
+  | Ast.Struct (name, parameters, fields) ->
+      declare_struct state statement name parameters fields
+  | Ast.Enum (name, parameters, variants) ->
+      declare_enum state statement name parameters variants
+  | Ast.Alias (name, parameters, body) ->
+      declare_alias state statement name parameters body
+  | Ast.Let (name, annotation, expression) ->
+      let actual = infer state expression in
+      let mutable_, ty =
+        match annotation with
+        | None -> (false, actual)
+        | Some annotation ->
+            let expected = resolve_type state [] annotation.Ast.ty in
+            constrain state expression actual expected ("binding '" ^ name ^ "'");
+            (annotation.mutable_, expected)
       in
-      let texpl_errs, expl =
-        match targs with
-        | None -> ([], List.map (fun _ -> None) params)
-        | Some ts ->
-            if List.length ts <> List.length params then
-              ( [ Printf.sprintf "struct %s expects %d type argument(s), got %d"
-                    s (List.length params) (List.length ts) ],
-                List.map (fun _ -> None) params )
-            else
-              let one = function
-                | None -> ([], None) (* '_' hole *)
-                | Some syn ->
-                    let es, a = interp_arg env syn in
-                    (es, Some a)
-              in
-              let rs = List.map one ts in
-              (List.concat_map fst rs, List.map snd rs)
-      in
-      let evidence =
-        List.concat (zip_with (fun (_, ft) at -> solve ft at) fields arg_tys)
-      in
-      let solve_one (p, given) =
-        match given with
-        | Some a -> ([], (p, a))
-        | None -> (
-            let found =
-              nub_args (List.filter_map (fun (q, a) -> if q = p then Some a else None)
-                          evidence)
-            in
-            match found with
-            | [ a ] -> ([], (p, a))
-            | [] ->
-                ( [ "cannot infer type parameter '" ^ p ^ "' of struct " ^ s
-                    ^ " — write " ^ s ^ "<...>(...)" ],
-                  (p, [ TUnknown ]) )
-            | as_ ->
-                ( [ "conflicting types for parameter '" ^ p ^ "' of struct " ^ s
-                    ^ ": " ^ String.concat " vs " (List.map pretty_arg as_) ],
-                  (p, [ TUnknown ]) ))
-      in
-      let solved = List.map solve_one (List.combine params expl) in
-      let solve_errs = List.concat_map fst solved in
-      let su =
-        List.fold_left (fun m (p, a) -> SMap.add p a m) SMap.empty
-          (List.map snd solved)
-      in
-      let instd = List.map (fun (fn, ft) -> (fn, inst_ty env su ft)) fields in
-      let inst_errs = List.concat_map (fun (_, (es, _)) -> es) instd in
-      let check_arg (fn, ft) at =
-        if sub at ft then []
-        else
-          [ "field " ^ fn ^ " of " ^ s ^ ": found type " ^ pretty at
-            ^ ", needed type " ^ pretty ft ]
-      in
-      let field_errs =
-        List.concat
-          (zip_with (fun (fn, (_, t)) at -> check_arg (fn, t) at) instd arg_tys)
-      in
-      ( errs @ arity @ texpl_errs @ solve_errs @ inst_errs @ field_errs,
-        TStruct (s, List.map (fun (_, (_, a)) -> a) solved) )
-
-and nub_args xs =
-  List.rev
-    (List.fold_left
-       (fun acc x ->
-         if List.exists (fun y -> List.equal equal x y) acc then acc else x :: acc)
-       [] xs)
-
-(* -- op= dispatch ----------------------------------------------------------- *)
-
-let dispatch name op lhs rhs =
-  let ops = op_symbol op ^ "=" in
-  match (lhs, rhs) with
-  | TUnknown, _ | _, TUnknown -> []
-  | TSet cs, _ -> (
-      let invariant shown r =
-        if sub r (TSet cs) then []
-        else
-          [ "'" ^ ops ^ "' on " ^ name ^ ": found type " ^ pretty shown
-            ^ ", needed type " ^ pretty (TSet cs)
-            ^ " (op= is invariant — it cannot widen a binding's type)" ]
-      in
-      match rhs with
-      (* A bare edge on the RHS: suggest '{...}'-wrapping only when the braced
-         set would fit. Otherwise the honest problem is the binding's
-         components, and the hint would walk the user into invariance. *)
-      | TEdge ann ->
-          if sub (TSet [ rhs ]) (TSet cs) then
-            [ "'" ^ ops ^ "' on " ^ name ^ ": found type " ^ pretty rhs
-              ^ ", needed type " ^ pretty (TSet cs) ^ " — write a single edge as {...}" ]
-          else
-            [ "'" ^ ops ^ "' on " ^ name ^ ": found type " ^ pretty rhs
-              ^ ", needed type " ^ pretty (TSet cs)
-              ^ " — wrapping it as {...} would not help (op= is invariant); \
-                 declare " ^ name ^ " with Set<" ^ pretty rhs
-              ^ "> among its components"
-              ^ (match ann with Some _ -> ", or drop the payload" | None -> "") ]
-      | TUndirectedEdge ann -> invariant rhs (TSet [ TEdge ann ])
-      | TSet _ -> invariant rhs rhs
-      | other ->
-          [ "'" ^ ops ^ "' on " ^ name ^ ": found type " ^ pretty other
-            ^ ", needed type " ^ pretty (TSet cs) ])
-  (* Side surgery: the RHS must be a plain edge of the same orientation, since
-     surgery edits sides and never payloads. *)
-  | TEdge _, TEdge None -> []
-  | TEdge _, TEdge (Some _) ->
-      [ "'" ^ ops ^ "' on " ^ name ^ ": the RHS of side surgery must be a plain \
-         Edge, found " ^ pretty rhs ^ " (surgery never edits payloads)" ]
-  | TEdge _, other ->
-      [ "'" ^ ops ^ "' on " ^ name ^ ": found type " ^ pretty other
-        ^ ", needed type Edge" ]
-  | TUndirectedEdge _, TUndirectedEdge None -> []
-  | TUndirectedEdge _, TUndirectedEdge (Some _) ->
-      [ "'" ^ ops ^ "' on " ^ name ^ ": the RHS of side surgery must be a plain \
-         UndirectedEdge, found " ^ pretty rhs ^ " (surgery never edits payloads)" ]
-  | TUndirectedEdge _, other ->
-      [ "'" ^ ops ^ "' on " ^ name ^ ": found type " ^ pretty other
-        ^ ", needed type UndirectedEdge" ]
-  | other, _ ->
-      [ "'" ^ ops ^ "' cannot apply to " ^ name ^ " of type " ^ pretty other ]
-
-(* -- statements ------------------------------------------------------------- *)
-
-let check_stmt env (stmt : stmt) =
-  match stmt.it with
-  (* A struct definition is checked here with its parameters rigid, exactly
-     like an alias body. A parameter no field mentions can never be inferred
-     nor affect a value, so it is rejected: the phantom idiom is deliberately
-     unsupported, because erasure would defeat it. *)
-  | SStruct (n, params, fields) ->
-      let env_r = { env with rigids = params } in
-      let interp_field (f : field) =
-        let es, is_mut, ty = interp_binding env_r f.ftype in
-        ( es @ (if is_mut then [ "'mut' is not allowed in struct fields" ] else []),
-          (f.fname, ty) )
-      in
-      let results = List.map interp_field fields in
-      let field_tys = List.map snd results in
-      let ty_errs = List.concat_map fst results in
-      let dups =
-        List.filter_map (fun (f, c) -> if c > 1 then Some f else None)
-          (counts (List.map fst field_tys))
-      in
-      let dup_err =
-        if dups = [] then []
-        else [ "duplicate field(s) in struct " ^ n ^ ": " ^ String.concat " " dups ]
-      in
-      let redef_err =
-        if SMap.mem n env.structs then [ "struct " ^ n ^ " redefined" ] else []
-      in
-      let alias_err =
-        if SMap.mem n env.aliases then
-          [ "struct " ^ n ^ " collides with type alias " ^ n ]
-        else []
-      in
-      let unused =
-        List.filter_map
-          (fun p ->
-            if List.exists (fun (_, t) -> occurs_param p t) field_tys then None
-            else
-              Some ("type parameter '" ^ p ^ "' of struct " ^ n
-                   ^ " is never used by a field"))
-          params
-      in
-      let errs =
-        ty_errs @ dup_err @ redef_err @ alias_err @ param_checks n params @ unused
-      in
-      let env' =
-        if errs = [] then
-          { env with
-            structs = SMap.add n (params, field_tys) env.structs;
-            invalid_structs = List.filter (( <> ) n) env.invalid_structs }
-        else if SMap.mem n env.structs then
-          (* Do not poison a valid earlier definition when this was merely a
-             rejected redefinition. *)
-          env
-        else { env with invalid_structs = n :: env.invalid_structs }
-      in
-      (errs, env')
-  (* A type alias is checked at its definition with parameters rigid. Unknown
-     names, arity misuse and 'mut' in the body reject it atomically, so a use
-     site can then only fail through its arguments. No merge judgment runs
-     here, because whether a sum is usable is a question about position. *)
-  | SType (n, params, body) ->
-      let name_errs =
-        if List.mem n builtin_names then
-          [ "type '" ^ n ^ "' is built-in and cannot be redefined" ]
-        else if SMap.mem n env.aliases then [ "type alias " ^ n ^ " redefined" ]
-        else if SMap.mem n env.structs then [ "'" ^ n ^ "' is already a struct" ]
-        else []
-      in
-      let mut_err =
-        if syn_mentions_mut body then
-          [ "'mut' cannot appear in a type alias — mut is binding-position syntax" ]
-        else []
-      in
-      let body_errs =
-        if mut_err = [] then
-          fst (interp_apps { env with rigids = params } Element body)
-        else mut_err
-      in
-      let errs = name_errs @ param_checks n params @ body_errs in
-      if errs = [] then
-        ([], { env with aliases = SMap.add n (params, body) env.aliases })
-      else (errs, env)
-  | SLet (n, _, v) when SMap.mem n env.vars ->
-      (* Single-assignment: names are permanent identities. The value is still
-         inferred for its own errors, and the old binding stays. *)
-      let verrs, _ = infer env v in
-      ( ( n ^ " is already defined — bindings are single-assignment (mutate a \
-            mut binding with &= ^= /=, or choose a new name)" )
-        :: verrs,
-        env )
-  | SLet (n, ann, v) ->
-      let verrs, vt = infer env v in
-      let aerrs, is_mut, at =
-        match ann with
-        | None -> ([], false, TUnknown)
-        | Some syn -> interp_binding env syn
-      in
-      let ann_err =
-        match ann with
-        | Some _ when (not (equal at TUnknown)) && not (sub vt at) ->
-            [ "declared " ^ n ^ ": " ^ pretty at ^ ", but found type " ^ pretty vt ]
-        | _ -> []
-      in
-      let final = if equal at TUnknown then vt else at in
-      ( verrs @ aerrs @ ann_err,
-        { env with vars = SMap.add n (is_mut, final) env.vars } )
-  | SExt (n, op, rhs) -> (
-      let ierrs, rt = infer env rhs in
-      let rerrs =
-        (if (op = Inter || op = Diff) && mints_fronce rhs then
-           mint_match_err ("the RHS of '" ^ op_symbol op ^ "='")
-         else [])
-        @ ierrs
-      in
-      match SMap.find_opt n env.vars with
-      | None -> (("assignment to undefined variable " ^ n) :: rerrs, env)
-      | Some (is_mut, t) ->
-          let mut_err =
-            if (not is_mut) && not (equal t TUnknown) then
-              [ n ^ " is not mut — declare it 'let " ^ n ^ ": mut ...' to use "
-                ^ op_symbol op ^ "=" ]
-            else []
+      if String_map.mem name state.variables then
+        diagnose state statement.loc ("duplicate binding '" ^ name ^ "'")
+      else
+        let marker =
+          match expression.Ast.it with
+          | Ast.Ref source -> (
+              match String_map.find_opt source state.variables with
+              | Some binding -> binding.marker
+              | None -> marker state statement.loc ("binding:" ^ name))
+          | _ -> marker state statement.loc ("binding:" ^ name)
+        in
+        state.variables <- String_map.add name { mutable_; ty; marker } state.variables;
+        state.pending_bindings <-
+          { pending_name = name;
+            pending_mutable = mutable_;
+            pending_type = ty;
+            pending_marker = marker;
+            pending_loc = statement.loc }
+          :: state.pending_bindings
+  | Ast.Update (name, operator, expression) -> (
+      let right = infer state expression in
+      match String_map.find_opt name state.variables with
+      | None -> diagnose state statement.loc ("undefined variable '" ^ name ^ "'")
+      | Some binding ->
+          if not binding.mutable_ then
+            diagnose state statement.loc ("binding '" ^ name ^ "' is immutable");
+          let right =
+            match (binding.ty, right) with
+            | Types.Set _, Types.Edge (Types.Undirected, tail, head, payload) ->
+                let upper =
+                  Types.Set (Types.Edge (Types.Directed, tail, head, payload))
+                in
+                add_coercion state expression.loc right upper;
+                upper
+            | _ -> right
           in
-          (* The binding's type is fixed at declaration: op= never retypes. *)
-          (mut_err @ rerrs @ dispatch n op t rt, env))
+          let updated = combine_update state statement.loc operator binding.ty right in
+          constrain state expression updated binding.ty ("update of '" ^ name ^ "'"))
 
-(* -- the report ------------------------------------------------------------- *)
+let solver_error loc message = [ { loc; message } ]
 
-let var_report env n =
-  Option.map
-    (fun (is_mut, t) -> n ^ " : " ^ (if is_mut then "mut " else "") ^ pretty t)
-    (SMap.find_opt n env.vars)
-
-(* What a statement bound, with its declared or inferred type. *)
-let binding_report env (stmt : stmt) =
-  match stmt.it with
-  | SLet (n, _, _) | SExt (n, _, _) -> var_report env n
-  | SStruct (n, _, _) -> (
-      match SMap.find_opt n env.structs with
-      | Some (ps, []) -> Some ("struct " ^ n ^ param_list ps ^ " {}")
-      | Some (ps, fields) ->
-          Some
-            ("struct " ^ n ^ param_list ps ^ " { "
-            ^ String.concat ", "
-                (List.map (fun (f, t) -> f ^ ": " ^ pretty t) fields)
-            ^ " }")
-      | None -> None)
-  (* A rejected redefinition reports the surviving definition, mirroring how
-     redefined lets report the old binding. *)
-  | SType (n, _, _) -> (
-      match SMap.find_opt n env.aliases with
-      | Some (ps, body) ->
-          Some ("type " ^ n ^ param_list ps ^ " = " ^ pretty_syn body)
-      | None -> None)
-
-(* What each statement declared, for the evaluator. A 'let' with an annotation
-   that interpreted to something records (mut, type); everything else records
-   nothing.
-
-   The Rust evaluator re-derives this from the written syntax, in 55 lines that
-   carry their own alias table and a cycle guard, because the checker's answer
-   only ever crossed the boundary as prose. Here it is the checker's answer. *)
-type declaration = (bool * ty) option
-
-(* A diagnostic carries a CODE naming the rule, so prose can improve without
-   breaking a consumer. Classification is deliberately conservative, and the
-   rules needing AST context inspect the statement here rather than trying to
-   recover intent from a rendered string. *)
-type diagnostic = {
-  code : string;
-  message : string;
-  statement : int;
-  notes : string list;
-  helps : string list;
-}
-
-let contains hay needle =
-  let n = String.length needle and h = String.length hay in
-  let rec go i = i + n <= h && (String.sub hay i n = needle || go (i + 1)) in
-  n = 0 || go 0
-
-let starts_with hay p =
-  String.length hay >= String.length p && String.sub hay 0 (String.length p) = p
-
-(* An anonymous set of edges splices into its parent, so a Set<Graph>
-   annotation over one is a mismatch worth explaining rather than merely
-   reporting. *)
-let anonymous_graph_mismatch (stmt : stmt) message =
-  match stmt.it with
-  | SLet (_, _, { it = Set elems; _ }) ->
-      List.exists
-        (fun (e : node) -> match e.it with Edge _ | UEdge _ -> true | _ -> false)
-        elems
-      && contains message "Set<Graph>"
-      && (contains message "Set<Edge" || contains message "Set<UndirectedEdge>")
-  | _ -> false
-
-let anonymous_graph_help (stmt : stmt) =
-  match stmt.it with
-  | SLet (n, _, _) ->
-      "bind the inner graph first, then use its name: let inner: Graph = ...;        let " ^ n ^ ": Set<Graph> = {inner}"
-  | _ -> "bind the inner graph first, then use its name"
-
-let diagnostic_meta stmt message =
-  if anonymous_graph_mismatch stmt message then
-    ( "T014",
-      [ "anonymous sets of edges are flattened into their parent set" ],
-      [ anonymous_graph_help stmt ] )
-  else if contains message " is already defined" then ("T001", [], [])
-  else if contains message "op= is invariant" then ("T021", [], [])
-  else if starts_with message "cannot infer type parameter" then ("T031", [], [])
-  else if contains message "because its definition was invalid" then
-    ( "T032",
-      [ "fix the earlier struct definition before using this constructor" ],
-      [] )
-  else if
-    starts_with message "type parameter '"
-    && contains message "is never used by a field"
-  then ("T030", [], [])
-  else if starts_with message "declared " then ("T010", [], [])
-  else if starts_with message "unknown " then ("T040", [], [])
-  else ("T000", [], [])
-
-(* Where inside a statement a diagnostic points, for a consumer that wants to
-   locate it without re-parsing. *)
-let stmt_path (stmt : stmt) =
-  match stmt.it with
-  | SLet _ -> "/value"
-  | SExt _ -> "/rhs"
-  | SStruct _ -> "/fields"
-  | SType _ -> "/body"
-
-type checked = { number : int; errors : string list; binding : string option }
-
-(* Everything a consumer downstream of checking needs. The evaluator reads
-   'declarations' to know when a binding coerced; the facts emitter reads
-   'structs' for the RESOLVED field types, so a field declared through a type
-   alias is still known to be a Decimal. *)
-type outcome = {
-  report : string;
-  errors : int;
-  declarations : declaration list;
-  structs : (string list * (string * ty) list) SMap.t;
-  diagnostics : diagnostic list;
-  judgments : (int * string) list;
-}
-
-
-let declaration_of env (stmt : stmt) : declaration =
-  match stmt.it with
-  | SLet (_, Some syn, _) ->
-      let _, is_mut, ty = interp_binding env syn in
-      if equal ty TUnknown then None else Some (is_mut, ty)
-  | _ -> None
-
-let check_program (program : program) =
-  let rows, error_count, final, decls =
-    List.fold_left
-      (fun (out, n, env, ds) (i, stmt) ->
-        (* The declaration is read in the environment the statement is checked
-           in, since an alias defined earlier must already be in scope. *)
-        let d = declaration_of env stmt in
-        let errs, env' = check_stmt env stmt in
-        ( out @ [ { number = i; errors = errs; binding = binding_report env' stmt } ],
-          n + List.length errs,
-          env',
-          ds @ [ d ] ))
-      ([], 0, empty_env, [])
-      (List.mapi (fun i s -> (i + 1, s)) program)
+let run_solver state =
+  let origin =
+    match state.rows with
+    | row :: _ -> row.loc
+    | [] -> (match state.fresh_variables with (_, loc) :: _ -> loc | [] -> Ast.{ line = 1; column = 1 })
   in
-  let render row =
-    List.map (fun e -> Printf.sprintf "stmt %d: error: %s" row.number e) row.errors
-    @ (match row.binding with
-      | Some r -> [ Printf.sprintf "stmt %d: %s" row.number r ]
-      | None -> [])
-  in
-  let summary =
-    if error_count = 0 then "typecheck: OK"
-    else Printf.sprintf "typecheck: %d error(s)" error_count
-  in
-  let diagnostics =
-    List.concat
-      (List.map2
-         (fun row (stmt : stmt) ->
-           List.map
-             (fun m ->
-               let code, notes, helps = diagnostic_meta stmt m in
-               { code; message = m; statement = row.number; notes; helps })
-             row.errors)
-         rows program)
-  in
-  let judgments =
-    List.filter_map
-      (fun row -> Option.map (fun b -> (row.number, b)) row.binding)
-      rows
-  in
-  { report = String.concat "\n" (List.concat_map render rows @ [ summary ]) ^ "\n";
-    errors = error_count;
-    declarations = decls;
-    structs = final.structs;
-    diagnostics;
-    judgments }
+  let base_rows = state.rows in
+  let base_constraints = List.map (fun row -> row.constraint_) base_rows in
+  match Solver.solve base_constraints with
+  | Error error -> Error (solver_error origin ("verified solver error: " ^ error.message))
+  | Ok Solver.Unsat ->
+      let reasons =
+        base_rows |> List.map (fun row -> row.reason) |> List.sort_uniq String.compare
+      in
+      Error
+        (solver_error origin
+           ("type constraints are inconsistent"
+           ^ (if reasons = [] then "" else ": " ^ String.concat "; " reasons)))
+  | Ok (Solver.Sat preliminary) ->
+      let preliminary =
+        List.fold_left
+          (fun assignment (name, _) ->
+            if List.mem_assoc name assignment then assignment
+            else (name, Solver.empty) :: assignment)
+          preliminary state.fresh_variables
+      in
+      if state.coercions = [] then Ok preliminary
+      else
+        let rules =
+          List.map
+            (fun coercion ->
+              let lower = Solver.substitute preliminary coercion.lower in
+              let upper = Solver.substitute preliminary coercion.upper in
+              Solver.of_subsumption ~lower ~upper)
+            state.coercions
+        in
+        match Solver.solve ~rules [] with
+        | Error error ->
+            Error (solver_error origin ("verified solver error: " ^ error.message))
+        | Ok Solver.Unsat ->
+            Error
+              (solver_error origin
+                 "the specialized UndirectedEdge-to-Set<Edge> coercion is inconsistent")
+        | Ok (Solver.Sat _) -> Ok preliminary
+
+let check program =
+  let state = empty_state () in
+  List.iter (check_statement state) program;
+  match List.rev state.diagnostics with
+  | _ :: _ as diagnostics -> Error diagnostics
+  | [] -> (
+      match run_solver state with
+      | Error diagnostics -> Error diagnostics
+      | Ok assignment ->
+          let bindings =
+            List.rev state.pending_bindings
+            |> List.map (fun pending ->
+                 { name = pending.pending_name;
+                   mutable_ = pending.pending_mutable;
+                   ty = pending.pending_type;
+                   solved_type =
+                     Solver.substitute assignment (Types.to_solver pending.pending_type);
+                   marker = pending.pending_marker;
+                   loc = pending.pending_loc })
+          in
+          Ok
+            { program;
+              bindings;
+              declarations =
+                String_map.bindings state.declarations |> List.map snd;
+              assignment;
+              coercions =
+                state.coercions |> List.map (fun coercion -> coercion.loc)
+                |> List.sort_uniq compare })
+
+let find_binding checked name =
+  List.find_opt (fun binding -> binding.name = name) checked.bindings
+
+let pp_solved_type formatter binding = Solver.pp_term formatter binding.solved_type

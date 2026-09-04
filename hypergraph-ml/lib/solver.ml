@@ -7,7 +7,9 @@ type term =
   | E of term
 
 type constraint_ = Equal of term * term | Below of term * term
-type replacement = { pattern : term; replacement : term }
+type replacement =
+  | Replace of { pattern : term; replacement : term }
+  | Subsumption of { lower : term; upper : term }
 type assignment = (string * term) list
 type solution = Sat of assignment | Unsat
 type error = Lean_bridge.error
@@ -27,8 +29,8 @@ let sum terms =
 
 let hom name body = Hom (name, body)
 let e body = E body
-let replacement ~pattern ~replacement = { pattern; replacement }
-let of_subsumption ~lower ~upper = { pattern = upper; replacement = sum [ upper; lower ] }
+let replacement ~pattern ~replacement = Replace { pattern; replacement }
+let of_subsumption ~lower ~upper = Subsumption { lower; upper }
 
 module String_set = Set.Make (String)
 
@@ -57,8 +59,9 @@ let collect_constraint names = function
   | Equal (left, right) | Below (left, right) ->
       collect_term (collect_term names left) right
 
-let collect_replacement names rule =
-  collect_term (collect_term names rule.pattern) rule.replacement
+let collect_replacement names = function
+  | Replace rule -> collect_term (collect_term names rule.pattern) rule.replacement
+  | Subsumption rule -> collect_term (collect_term names rule.lower) rule.upper
 
 let has_variable term =
   let rec loop = function
@@ -137,10 +140,13 @@ let rec term_of_json constants homomorphisms = function
       | _ -> Error { Lean_bridge.message = "unknown term in solver response" })
   | _ -> Error { Lean_bridge.message = "non-object term in solver response" }
 
-let solve ?(rules = []) constraints =
+let solve_batch ?(rules = []) constraints =
   match
     List.find_opt
-      (fun rule -> has_variable rule.pattern || has_variable rule.replacement)
+      (function
+        | Replace rule ->
+            has_variable rule.pattern || has_variable rule.replacement
+        | Subsumption rule -> has_variable rule.lower || has_variable rule.upper)
       rules
   with
   | Some _ ->
@@ -158,10 +164,16 @@ let solve ?(rules = []) constraints =
       let rules_json =
         `List
           (List.map
-             (fun rule ->
-               `Assoc
-                 [ ("pattern", encode rule.pattern);
-                   ("replacement", encode rule.replacement) ])
+             (function
+               | Replace rule ->
+                   `Assoc
+                     [ ("kind", `String "replace");
+                       ("pattern", encode rule.pattern);
+                       ("replacement", encode rule.replacement) ]
+               | Subsumption rule ->
+                   `Assoc
+                     [ ("kind", `String "subsumption");
+                       ("lower", encode rule.lower); ("upper", encode rule.upper) ])
              rules)
       in
       let constraints_json =
@@ -208,6 +220,53 @@ let solve ?(rules = []) constraints =
                 | _ -> Error { Lean_bridge.message = "missing solver assignment" })
             | _ -> Error { Lean_bridge.message = "unknown solver status" })
         | _ -> Error { Lean_bridge.message = "non-object solver response" })
+
+let variables_of_constraint constraint_ =
+  let names = collect_constraint no_names constraint_ in
+  names.variables
+
+let sets_overlap left right =
+  String_set.exists (fun value -> String_set.mem value right) left
+
+let partition_constraints constraints =
+  let ground = ref [] and groups = ref [] in
+  List.iter
+    (fun constraint_ ->
+      let variables = variables_of_constraint constraint_ in
+      if String_set.is_empty variables then ground := constraint_ :: !ground
+      else
+        let touching, separate =
+          List.partition
+            (fun (other_variables, _) -> sets_overlap variables other_variables)
+            !groups
+        in
+        let variables =
+          List.fold_left
+            (fun all (other, _) -> String_set.union all other)
+            variables touching
+        in
+        let constraints =
+          constraint_
+          :: List.concat_map (fun (_, constraints) -> constraints) touching
+        in
+        groups := (variables, constraints) :: separate)
+    constraints;
+  let groups = List.map snd !groups in
+  match (!ground, groups) with
+  | [], [] -> [ [] ]
+  | [], groups -> groups
+  | ground, groups -> List.rev ground :: groups
+
+let solve ?(rules = []) constraints =
+  let rec solve_groups assignment = function
+    | [] -> Ok (Sat (List.rev assignment))
+    | constraints :: rest -> (
+        match solve_batch ~rules constraints with
+        | Error _ as error -> error
+        | Ok Unsat -> Ok Unsat
+        | Ok (Sat component) -> solve_groups (List.rev_append component assignment) rest)
+  in
+  solve_groups [] (partition_constraints constraints)
 
 let rec substitute assignment = function
   | Zero -> Zero

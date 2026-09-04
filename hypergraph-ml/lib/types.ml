@@ -1,125 +1,254 @@
-(* Types, and the three judgments that shape them: canonical form, subtyping,
-   and how a type is written back out. *)
+type edge_kind = Directed | Undirected
 
-type ty =
-  | TInt
-  | TDec
-  | TStr
-  | TFronce                       (* '#' and '#N' literals *)
-  | TEdge of ty option            (* None: plain; Some t: Edge<t> payload *)
-  | TUndirectedEdge of ty option
-  | TStruct of string * targ list (* nominal, and invariant in its arguments,
-                                     so Pair<Int> and Pair<String> never relate *)
-  | TGraph                        (* element type of a nested named graph *)
-  | TSet of ty list               (* canonical component set; [] is the empty sum *)
-  | TParam of string              (* rigid variable, definition-site only *)
-  | TUnknown                      (* error recovery *)
+type t =
+  | Empty
+  | Int
+  | Decimal
+  | String
+  | Parameter of string
+  | Variable of string
+  | Sum of t list
+  | Set of t
+  | Option of t
+  | Edge of edge_kind * t * t * t
+  | Named of string * (string * t) list
+  | Opaque of t * t
+  | Error
 
-(* One type argument of an instantiated struct: a component sum kept as a
-   canonical sorted list. 'Bag<Int + String>' has the one argument
-   [Int; String], and a single type is the singleton sum. *)
-and targ = ty list [@@deriving ord, eq]
+let rec equal left right =
+  match (left, right) with
+  | Empty, Empty | Int, Int | Decimal, Decimal | String, String | Error, Error -> true
+  | Parameter left, Parameter right | Variable left, Variable right -> left = right
+  | Sum left, Sum right ->
+      List.length left = List.length right && List.for_all2 equal left right
+  | Set left, Set right | Option left, Option right -> equal left right
+  | Edge (left_kind, left_tail, left_head, left_payload),
+    Edge (right_kind, right_tail, right_head, right_payload) ->
+      left_kind = right_kind
+      && equal left_tail right_tail
+      && equal left_head right_head
+      && equal left_payload right_payload
+  | Named (left_name, left_members), Named (right_name, right_members) ->
+      left_name = right_name
+      && List.length left_members = List.length right_members
+      && List.for_all2
+           (fun (left_label, left_type) (right_label, right_type) ->
+             left_label = right_label && equal left_type right_type)
+           left_members right_members
+  | Opaque (left_hidden, left_marker), Opaque (right_hidden, right_marker) ->
+      equal left_hidden right_hidden && equal left_marker right_marker
+  | _ -> false
 
-(* The derived comparison is NOT OCaml's polymorphic compare, and the
-   difference is visible. 'canon' sorts components and the sorted order is
-   what gets printed, so 'Graph' must render as
-   'Set<Edge> + Set<UndirectedEdge> + Set<Graph>'. That is constructor
-   declaration order, which is what both Haskell's derived Ord and
-   ppx_deriving.ord give. Polymorphic compare would order every constant
-   constructor before every non-constant one, putting TGraph before TEdge and
-   changing the rendering. test_types.ml pins it.
+let rec flatten_sum output = function
+  | [] -> output
+  | Empty :: rest -> flatten_sum output rest
+  | Sum nested :: rest -> flatten_sum output (nested @ rest)
+  | value :: rest -> flatten_sum (value :: output) rest
 
-   Written by hand first, at 39 lines against Haskell's single 'deriving'
-   word, which was most of this file's excess over the original. *)
+let sum values =
+  let values = List.rev (flatten_sum [] values) in
+  let values =
+    List.fold_left
+      (fun output value ->
+        if List.exists (equal value) output then output else output @ [ value ])
+      [] values
+  in
+  match values with [] -> Empty | [ value ] -> value | _ -> Sum values
 
-let equal = equal_ty
+let summands = function Sum values -> values | Empty -> [] | value -> [ value ]
 
-(* -- writing a type back out ------------------------------------------------ *)
+let rec meet left right =
+  if equal left right then left
+  else
+    match (left, right) with
+    | Set left, Set right -> Set (meet left right)
+    | _ ->
+        let right = summands right in
+        summands left
+        |> List.filter (fun value -> List.exists (equal value) right)
+        |> sum
+
+let apply_set_operator operator left right =
+  match operator with
+  | Ast.Union -> sum [ left; right ]
+  | Ast.Intersection -> meet left right
+  | Ast.Difference -> left
+
+let rec substitute parameters ty =
+  match ty with
+  | Parameter name -> Option.value (List.assoc_opt name parameters) ~default:ty
+  | Sum values -> sum (List.map (substitute parameters) values)
+  | Set element -> Set (substitute parameters element)
+  | Option payload -> Option (substitute parameters payload)
+  | Edge (kind, tail, head, payload) ->
+      Edge
+        (kind, substitute parameters tail, substitute parameters head,
+         substitute parameters payload)
+  | Named (name, members) ->
+      Named
+        (name, List.map (fun (label, ty) -> (label, substitute parameters ty)) members)
+  | Opaque (hidden, marker) ->
+      Opaque (substitute parameters hidden, substitute parameters marker)
+  | (Empty | Int | Decimal | String | Variable _ | Error) as ty -> ty
+
+let rec has_variable = function
+  | Variable _ -> true
+  | Sum values -> List.exists has_variable values
+  | Set element | Option element -> has_variable element
+  | Edge (_, tail, head, payload) ->
+      has_variable tail || has_variable head || has_variable payload
+  | Named (_, members) -> List.exists (fun (_, ty) -> has_variable ty) members
+  | Opaque (hidden, marker) -> has_variable hidden || has_variable marker
+  | Empty | Int | Decimal | String | Parameter _ | Error -> false
+
+let is_edge = function Edge _ -> true | _ -> false
+
+let edge_parts = function
+  | Edge (kind, tail, head, payload) -> Some (kind, tail, head, payload)
+  | _ -> None
+
+let as_set = function Set element -> Some element | _ -> None
+
+let is_graph = function
+  | Set element ->
+      let components = summands element in
+      components <> [] && List.for_all is_edge components
+  | _ -> false
+
+let rec contains_graph ty =
+  is_graph ty
+  ||
+  match ty with
+  | Sum values -> List.exists contains_graph values
+  | Set element | Option element -> contains_graph element
+  | Edge (_, tail, head, payload) ->
+      contains_graph tail || contains_graph head || contains_graph payload
+  | Named (_, members) -> List.exists (fun (_, ty) -> contains_graph ty) members
+  | Opaque _ -> false
+  | Empty | Int | Decimal | String | Parameter _ | Variable _ | Error -> false
+
+let rec equality_projection ty =
+  match ty with
+  | Opaque (_, marker) -> Named ("$OpaqueEq", [ ("marker", marker) ])
+  | Sum values -> sum (List.map equality_projection values)
+  | Set element -> Set (equality_projection element)
+  | Option payload -> Option (equality_projection payload)
+  | Edge (kind, tail, head, payload) ->
+      Edge
+        (kind, equality_projection tail, equality_projection head,
+         equality_projection payload)
+  | Named (name, members) ->
+      Named
+        (name, List.map (fun (label, ty) -> (label, equality_projection ty)) members)
+  | ty -> ty
+
+let rec protect_graphs marker ty =
+  if is_graph ty then Opaque (ty, marker)
+  else
+    match ty with
+    | Sum values -> sum (List.map (protect_graphs marker) values)
+    | Set element -> Set (protect_graphs marker element)
+    | Option payload -> Option (protect_graphs marker payload)
+    | Edge (kind, tail, head, payload) ->
+        Edge
+          (kind, protect_graphs marker tail, protect_graphs marker head,
+           protect_graphs marker payload)
+    | Named (name, members) ->
+        Named
+          (name,
+           List.map
+             (fun (label, ty) -> (label, protect_graphs marker ty))
+             members)
+    | Opaque _ as opaque -> opaque
+    | (Empty | Int | Decimal | String | Parameter _ | Variable _ | Error) as ty -> ty
+
+let named_term name members =
+  let body =
+    Solver.constant ("decl:" ^ name)
+    :: List.map
+         (fun (label, ty) -> Solver.hom ("member:" ^ name ^ ":" ^ label) ty)
+         members
+  in
+  Solver.e (Solver.sum body)
+
+let rec to_solver = function
+  | Empty -> Solver.empty
+  | Int -> Solver.constant "builtin:Int"
+  | Decimal -> Solver.constant "builtin:Decimal"
+  | String -> Solver.constant "builtin:String"
+  | Parameter name -> Solver.variable ("parameter:" ^ name)
+  | Variable name -> Solver.variable name
+  | Sum values -> Solver.sum (List.map to_solver values)
+  | Set element ->
+      Solver.sum
+        [ Solver.constant "builtin:Set";
+          Solver.hom "set:element" (to_solver element) ]
+  | Option payload ->
+      named_term "Option"
+        [ ("Some:0", to_solver payload); ("None", Solver.empty) ]
+  | Edge (kind, tail, head, payload) ->
+      let name = match kind with Directed -> "Edge" | Undirected -> "UndirectedEdge" in
+      named_term name
+        [ ("tail", to_solver (Set tail));
+          ("head", to_solver (Set head));
+          ("payload", to_solver (Option payload)) ]
+  | Named (name, members) ->
+      named_term name (List.map (fun (label, ty) -> (label, to_solver ty)) members)
+  | Opaque (hidden, marker) ->
+      named_term "$Opaque"
+        [ ("hide", to_solver hidden); ("marker", to_solver marker) ]
+  | Error -> Solver.empty
+
+type relation = Yes | No | Deferred
+
+let combine_relations relations =
+  if List.exists (( = ) No) relations then No
+  else if List.exists (( = ) Deferred) relations then Deferred
+  else Yes
+
+let rec below left right =
+  if equal left right || left = Empty || left = Error || right = Error then Yes
+  else if has_variable left || has_variable right then Deferred
+  else
+    match (left, right) with
+    | _, Sum choices ->
+        summands left
+        |> List.map (fun value ->
+             if List.exists (fun choice -> below value choice = Yes) choices then Yes else No)
+        |> combine_relations
+    | Sum values, _ -> List.map (fun value -> below value right) values |> combine_relations
+    | Set left, Set right | Option left, Option right -> below left right
+    | Edge (left_kind, left_tail, left_head, left_payload),
+      Edge (right_kind, right_tail, right_head, right_payload)
+      when left_kind = right_kind ->
+        combine_relations
+          [ below left_tail right_tail; below left_head right_head;
+            below left_payload right_payload ]
+    | Named (left_name, left_members), Named (right_name, right_members)
+      when left_name = right_name && List.length left_members = List.length right_members ->
+        List.map2
+          (fun (left_label, left_type) (right_label, right_type) ->
+            if left_label <> right_label then No else below left_type right_type)
+          left_members right_members
+        |> combine_relations
+    | Opaque (left_hidden, left_marker), Opaque (right_hidden, right_marker) ->
+        combine_relations [ below left_hidden right_hidden; below left_marker right_marker ]
+    | _ -> No
 
 let rec pretty = function
-  | TInt -> "Int"
-  | TDec -> "Decimal"
-  | TStr -> "String"
-  | TFronce -> "Fronce"
-  | TEdge None -> "Edge"
-  | TEdge (Some t) -> "Edge<" ^ pretty t ^ ">"
-  | TUndirectedEdge None -> "UndirectedEdge"
-  | TUndirectedEdge (Some t) -> "UndirectedEdge<" ^ pretty t ^ ">"
-  | TGraph -> "Graph"
-  | TStruct (n, []) -> "struct " ^ n
-  | TStruct (n, args) ->
-      "struct " ^ n ^ "<" ^ String.concat ", " (List.map pretty_arg args) ^ ">"
-  | TParam n -> n
-  | TUnknown -> "unknown"
-  | TSet [] -> "Set<>"
-  | TSet cs -> String.concat " + " (List.map (fun c -> "Set<" ^ pretty c ^ ">") cs)
-
-and pretty_arg a = String.concat " + " (List.map pretty a)
-
-(* -- canonical form --------------------------------------------------------- *)
-
-(* A multi-component TSet is the sum of its single-component sets, which is
-   what 'pretty' renders as 'Set<A> + Set<B>'. A component that is itself such
-   a set is therefore a sum standing in an element slot, and it gets spliced
-   back out. These two are equal by F(A + B) = F(A) + F(B), but only the second
-   lets 'embed' see the 'Set<Edge>' summand and abstract it to 'Graph', so
-   splicing is what makes both spellings converge.
-
-       Set<Set<Edge + Int>>          one component
-       Set<Set<Edge> + Set<Int>>     two *)
-let distribute = function
-  | TSet cs when List.length cs > 1 -> List.map (fun c -> TSet [ c ]) cs
-  | t -> [ t ]
-
-(* Sorted, deduplicated, no error placeholders, every component distributed.
-   Sorting before removing duplicates is the same answer as Haskell's nub
-   then sort, and cheaper. *)
-let canon_components components =
-  let rec dedup = function
-    | a :: (b :: _ as rest) -> if equal a b then dedup rest else a :: dedup rest
-    | rest -> rest
-  in
-  components
-  |> List.concat_map distribute
-  |> List.filter (fun t -> not (equal t TUnknown))
-  |> List.sort compare_ty |> dedup
-
-let canon components = TSet (canon_components components)
-
-(* One type argument of an instantiated struct, canonicalised the same way but
-   left as a list, since an argument is a component sum rather than a set. *)
-let arg_canon = canon_components
-
-(* -- graph shape ------------------------------------------------------------ *)
-
-(* Edge-shaped components, annotated or not. *)
-let is_edgy = function
-  | TEdge _ | TUndirectedEdge _ | TGraph -> true
-  | _ -> false
-
-(* A graph type: a non-empty set whose components are all edge-shaped. *)
-let is_graph_set = function
-  | TSet cs -> cs <> [] && List.for_all is_edgy cs
-  | _ -> false
-
-(* Element types are abstracted at the graph boundary. A graph-typed element
-   contributes the nominal component 'Graph' and never its precise type, which
-   is what keeps comparison from descending into a graph. *)
-let embed t = if is_graph_set t then TGraph else t
-
-(* -- subtyping -------------------------------------------------------------- *)
-
-(* Exactly three rules: width on component sets, the empty sum below every set
-   type, and UndirectedEdge <: Set<Edge> with the payload preserved. Annotated
-   and plain edges are unrelated, since annotations are invariant throughout.
-
-   The empty sum needs no case of its own. 'TSet []' has no components, so the
-   width rule's "every component of the left has a supertype on the right" is
-   vacuously true against any set. *)
-let rec sub a b =
-  match (a, b) with
-  | TUnknown, _ | _, TUnknown -> true
-  | _ when equal a b -> true
-  | TUndirectedEdge ann, _ -> sub (TSet [ TEdge ann ]) b
-  | TSet aa, TSet bb -> List.for_all (fun x -> List.exists (sub x) bb) aa
-  | _ -> false
+  | Empty -> "EmptySet"
+  | Int -> "Int"
+  | Decimal -> "Decimal"
+  | String -> "String"
+  | Parameter name | Variable name -> name
+  | Sum values -> String.concat " + " (List.map pretty values)
+  | Set element -> "Set<" ^ pretty element ^ ">"
+  | Option payload -> "Option<" ^ pretty payload ^ ">"
+  | Edge (kind, tail, head, payload) ->
+      let name = match kind with Directed -> "Edge" | Undirected -> "UndirectedEdge" in
+      Printf.sprintf "%s<%s, %s, %s>" name (pretty tail) (pretty head)
+        (pretty payload)
+  | Named (name, _) -> name
+  | Opaque (hidden, marker) ->
+      Printf.sprintf "Opaque<%s, %s>" (pretty hidden) (pretty marker)
+  | Error -> "<error>"

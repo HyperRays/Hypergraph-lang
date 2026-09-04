@@ -64,10 +64,19 @@ private def decodeRules (constantCount homCount : Nat) (items : Array Json) :
     Except String (List (BlockReplacement (Fin constantCount) (Fin homCount))) := do
   let mut rules := []
   for item in items do
-    let pattern ← decodeTerm constantCount 0 homCount (← item.getObjVal? "pattern")
-    let replacement ← decodeTerm constantCount 0 homCount
-      (← item.getObjVal? "replacement")
-    rules := rules ++ [BlockReplacement.ofTerms pattern replacement]
+    match ← getString item "kind" with
+    | "replace" =>
+        let pattern ← decodeTerm constantCount 0 homCount (← item.getObjVal? "pattern")
+        let replacement ← decodeTerm constantCount 0 homCount
+          (← item.getObjVal? "replacement")
+        rules := rules ++ [BlockReplacement.ofTerms pattern replacement]
+    | "subsumption" =>
+        let lower ← normalize <$> decodeTerm constantCount 0 homCount
+          (← item.getObjVal? "lower")
+        let upper ← normalize <$> decodeTerm constantCount 0 homCount
+          (← item.getObjVal? "upper")
+        rules := rules ++ [BlockReplacement.ofSubsumption lower upper]
+    | kind => throw s!"unknown replacement rule kind '{kind}'"
   pure rules
 
 private def decodeConstraints (constantCount variableCount homCount : Nat)

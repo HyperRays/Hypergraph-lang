@@ -1,6 +1,6 @@
 (library
  (name hypergraph)
- (modules Ast Parser Lexer Validate Driver Lean_bridge Solver)
+ (modules Ast Parser Lexer Validate Driver Lean_bridge Solver Types Check)
  (libraries yojson zarith threads)
  (foreign_stubs
   (language c)
