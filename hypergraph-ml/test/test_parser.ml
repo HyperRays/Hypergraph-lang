@@ -21,8 +21,8 @@ struct Car<T> {
 let car: Car<Int> = Car({1, 2}, 1000.000000000000000000000000000001)
 let nothing: Option<Int> = Option::None
 let edge: Edge<Int, Decimal, String> = {1} -["payload"]-> {1.10}
-let reverse: Edge<Int, Decimal, EmptySet> = {1.1} <- {1}
-let undirected: UndirectedEdge<Int, Int, EmptySet> = {1} <-> {2}
+let reverse: Edge<Int, Decimal, Bottom> = {1.1} <- {1}
+let undirected: UndirectedEdge<Int, Int, Bottom> = {1} <-> {2}
 let values: mut Set<Int> = {1, 2, 3}
 values |= {4}
 values &= {2, 4}

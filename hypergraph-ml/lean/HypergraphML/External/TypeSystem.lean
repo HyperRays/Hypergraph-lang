@@ -61,12 +61,12 @@ private def sumTerms {Variable : Type} : List (TypeTerm Variable) → TypeTerm V
   | [] => .zero
   | term :: terms => .add term (sumTerms terms)
 
-/-- A primitive scalar type.  `EmptySet` is represented by `empty`, not here. -/
+/-- A primitive scalar type. `Bottom` is represented by `bottom`, not here. -/
 def primitive {Variable : Type} (identity : TypeConstant) : TypeTerm Variable :=
   .const identity
 
 /-- The bottom type and the element type of the empty set literal. -/
-def empty {Variable : Type} : TypeTerm Variable := .zero
+def bottom {Variable : Type} : TypeTerm Variable := .zero
 
 /-- `Set<T> = S_setElement(C_Set, T)`. -/
 def set {Variable : Type} (element : TypeTerm Variable) : TypeTerm Variable :=

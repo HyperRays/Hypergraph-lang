@@ -21,15 +21,15 @@ let () =
   let environment =
     run
       {|
-let a: Edge<Int,Int,EmptySet> = {1} -> {2}
-let b: UndirectedEdge<Int,Int,EmptySet> = {2} <-> {3}
-let g: Set<Edge<Int,Int,EmptySet>> = {a, b}
+let a: Edge<Int,Int,Bottom> = {1} -> {2}
+let b: UndirectedEdge<Int,Int,Bottom> = {2} <-> {3}
+let g: Set<Edge<Int,Int,Bottom>> = {a, b}
 let decimals = {1.1, 1.10, 1000000000000000000000000000000.00000000000000000001}
 let left: mut Set<Int> = {1, 2, 3}
 left &= {2, 3, 4}
 left -= {3}
-let edge_left: mut Edge<Int,Int,EmptySet> = {1} -> {2}
-let edge_right: Edge<Int,Int,EmptySet> = {3} -> {4}
+let edge_left: mut Edge<Int,Int,Bottom> = {1} -> {2}
+let edge_right: Edge<Int,Int,Bottom> = {3} -> {4}
 edge_left |= edge_right
 let original = {{1} -> {2}}
 let copy = original

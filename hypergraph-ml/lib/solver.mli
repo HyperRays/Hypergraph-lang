@@ -5,7 +5,7 @@ type assignment = (string * term) list
 type solution = Sat of assignment | Unsat
 type error = Lean_bridge.error
 
-val empty : term
+val bottom : term
 val constant : string -> term
 val variable : string -> term
 val sum : term list -> term

@@ -81,7 +81,7 @@ The first type parameter `Int` defines the tail of the edge, `Decimal` defines t
 
 Since the payload type is embedded in `Option`, it is also possible to define an edge without an edge payload. This works for both edge types:
 ```hg
-let ud: Edge<Int, Decimal, EmptySet> = {1} -> {1.1}
+let ud: Edge<Int, Decimal, Bottom> = {1} -> {1.1}
 ```
 
 Undirected edges are special, they can be represented by a set of two directed edges, both in inverse directions, but they are not equivalent, since 'side surgery' works on UndirectedEdges (see section Operations on Edges).
@@ -94,14 +94,14 @@ let ud: UndirectedEdge<Int, Decimal, String> = {1} <-["Payload"]-> {1.1}
 A special behaviour of `UndirectedEdge` is that when put into a `Set<Edge>`, its type can be 'demoted' into that of `Edge` and two edges are inserted into that set.  This is due to the type `Set<Edge>` being the emergent type of a `Graph` which will be explained in more detail in the type system section.
 
 ```hg
-let a: Edge<Int, Decimal, EmptySet> = {1} -> {2}
-let b: UndirectedEdge<Int, Decimal, EmptySet> = {2} <-> {3}
+let a: Edge<Int, Decimal, Bottom> = {1} -> {2}
+let b: UndirectedEdge<Int, Decimal, Bottom> = {2} <-> {3}
 
 // b can be 'demoted' to type Edge
 // and the set g then ends up with 3 elements
 // {1} -> {2}, {2} -> {3}, {2} <- {3}
 // This is useful when extracting exact edges from undirected ones
-let g: Set<Edge<Int, Decimal, EmptySet>> = {a, b}  
+let g: Set<Edge<Int, Decimal, Bottom>> = {a, b}
 ```
 
 However unless explicitly coerced, the type remains as `Set<Edge + UndirectedEdge>` and can be interpreted as `Set<Edge>` whenever necessary (usually internal to the compiler, when emitting adjacency matrices). The type coercion is also irreversible, meaning that in that context, the original `UndirectedEdge` cannot be recovered.  
@@ -110,11 +110,11 @@ However unless explicitly coerced, the type remains as `Set<Edge + UndirectedEdg
 Graphs are an emergent object, meaning that they aren't really a separate object from the previous ones. They are of the type `Graph<T,H,P> = Set<Edge<T,H,P> + UndirectedEdge<T,H,P>>`:
 
 ```hg
-let a: Edge<Int, Decimal, EmptySet> = {1} -> {2}
-let b: Edge<Int, Decimal, EmptySet> = {2} -> {3}
-let c: Edge<Int, Decimal, EmptySet> = {3} -> {1}
+let a: Edge<Int, Decimal, Bottom> = {1} -> {2}
+let b: Edge<Int, Decimal, Bottom> = {2} -> {3}
+let c: Edge<Int, Decimal, Bottom> = {3} -> {1}
 
-let g: Graph<Int, Decimal, EmptySet> = {a, b, c}
+let g: Graph<Int, Decimal, Bottom> = {a, b, c}
 ```
 
 ### Operations
@@ -150,10 +150,10 @@ Operations on Edges are similar to operations on sets, however unlike sets, oper
 only work with other edges. The operations perform edge 'side surgery' meaning the set operations are applied to the tail/head sets of the edge.
 
 ```hg
-let edgeA: mut Edge<Int,Int,EmptySet> = {1} -> {2}
-let edgeB: Edge<Int,Int,EmptySet> = {3} -> {4}
+let edgeA: mut Edge<Int,Int,Bottom> = {1} -> {2}
+let edgeB: Edge<Int,Int,Bottom> = {3} -> {4}
 
-let edgeC: Edge<Int,Int,EmptySet> = edgeA | edgeB // {1, 3} -> {2, 4}
+let edgeC: Edge<Int,Int,Bottom> = edgeA | edgeB // {1, 3} -> {2, 4}
 edgeA |= edgeB // same as edgeC, but now in-place, so edgeA is now equivalent to edgeC
 ```
 
@@ -191,14 +191,14 @@ Distribution of types over the sum is mainly important for the `Eq` type which a
 
 An example of this (`T = Set`):
 ```hg
-let gA: Set<Edge<Int,Int,EmptySet>> = {{1}->{2}, {2}->{3}}
-let gB: Set<Edge<Int,Int,EmptySet>> = {{2}->{3}, {1}->{2}}
+let gA: Set<Edge<Int,Int,Bottom>> = {{1}->{2}, {2}->{3}}
+let gB: Set<Edge<Int,Int,Bottom>> = {{2}->{3}, {1}->{2}}
 
 // Set deduplication requires checking equality between items,
 // but since both gA and gB are graphs this would require graph isomorphism
 // so sidestepping this means wrapping each in the Opaque<..., Marker> type
 // done automatically by the type checker making gA distinct from gB by type inequality.
-let superg: Set<Set<Edge<Int,Int,EmptySet>>> = {gA, gB}
+let superg: Set<Set<Edge<Int,Int,Bottom>>> = {gA, gB}
 
 // Union at the outer level compares gA to gB by Marker type
 let superg2 = superg | {gA}   // still {gA, gB} — gA deduplicates by marker
@@ -228,9 +228,9 @@ This is important, since the edges values are sets, and connecting edges togethe
 
 The type `Eq` also distributes into the generic parameters `<...>`, since equality also depends on what the generic parameters are set to. Only for `Opaque` is there the exception for the parameter `Hide`. 
 
-##### Type `EmptySet`
+##### Type `Bottom`
 
-Note that `EmptySet` has been used for every example where the `Edge` does not have a payload, this is due to the property of `T :> EmptySet` meaning any type is inferable from an `EmptySet`, so you could have just as well used some other type `T`, but since it is not being used, it does not really matter.
+`Bottom` is used for every example where an `Edge` does not have a payload. It is the least type: `T :> Bottom` for every `T`. Consequently an unconstrained type variable has `Bottom` as its least solution; another type can still be inferred when the surrounding document supplies a stronger constraint.
 ##### Type Aliasing
 
 Type aliasing is very simple, you define what generics you need in the angle brackets `<...>` and then use them on the right hand side. 

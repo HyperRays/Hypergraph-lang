@@ -1,7 +1,7 @@
 type edge_kind = Directed | Undirected
 
 type t =
-  | Empty
+  | Bottom
   | Int
   | Decimal
   | String
@@ -17,7 +17,8 @@ type t =
 
 let rec equal left right =
   match (left, right) with
-  | Empty, Empty | Int, Int | Decimal, Decimal | String, String | Error, Error -> true
+  | Bottom, Bottom | Int, Int | Decimal, Decimal | String, String | Error, Error ->
+      true
   | Parameter left, Parameter right | Variable left, Variable right -> left = right
   | Sum left, Sum right ->
       List.length left = List.length right && List.for_all2 equal left right
@@ -41,7 +42,7 @@ let rec equal left right =
 
 let rec flatten_sum output = function
   | [] -> output
-  | Empty :: rest -> flatten_sum output rest
+  | Bottom :: rest -> flatten_sum output rest
   | Sum nested :: rest -> flatten_sum output (nested @ rest)
   | value :: rest -> flatten_sum (value :: output) rest
 
@@ -53,9 +54,9 @@ let sum values =
         if List.exists (equal value) output then output else output @ [ value ])
       [] values
   in
-  match values with [] -> Empty | [ value ] -> value | _ -> Sum values
+  match values with [] -> Bottom | [ value ] -> value | _ -> Sum values
 
-let summands = function Sum values -> values | Empty -> [] | value -> [ value ]
+let summands = function Sum values -> values | Bottom -> [] | value -> [ value ]
 
 let rec meet left right =
   if equal left right then left
@@ -89,7 +90,7 @@ let rec substitute parameters ty =
         (name, List.map (fun (label, ty) -> (label, substitute parameters ty)) members)
   | Opaque (hidden, marker) ->
       Opaque (substitute parameters hidden, substitute parameters marker)
-  | (Empty | Int | Decimal | String | Variable _ | Error) as ty -> ty
+  | (Bottom | Int | Decimal | String | Variable _ | Error) as ty -> ty
 
 let rec has_variable = function
   | Variable _ -> true
@@ -99,7 +100,7 @@ let rec has_variable = function
       has_variable tail || has_variable head || has_variable payload
   | Named (_, members) -> List.exists (fun (_, ty) -> has_variable ty) members
   | Opaque (hidden, marker) -> has_variable hidden || has_variable marker
-  | Empty | Int | Decimal | String | Parameter _ | Error -> false
+  | Bottom | Int | Decimal | String | Parameter _ | Error -> false
 
 let is_edge = function Edge _ -> true | _ -> false
 
@@ -125,7 +126,7 @@ let rec contains_graph ty =
       contains_graph tail || contains_graph head || contains_graph payload
   | Named (_, members) -> List.exists (fun (_, ty) -> contains_graph ty) members
   | Opaque _ -> false
-  | Empty | Int | Decimal | String | Parameter _ | Variable _ | Error -> false
+  | Bottom | Int | Decimal | String | Parameter _ | Variable _ | Error -> false
 
 let rec equality_projection ty =
   match ty with
@@ -160,7 +161,8 @@ let rec protect_graphs marker ty =
              (fun (label, ty) -> (label, protect_graphs marker ty))
              members)
     | Opaque _ as opaque -> opaque
-    | (Empty | Int | Decimal | String | Parameter _ | Variable _ | Error) as ty -> ty
+    | (Bottom | Int | Decimal | String | Parameter _ | Variable _ | Error) as ty ->
+        ty
 
 let named_term name members =
   let body =
@@ -172,7 +174,7 @@ let named_term name members =
   Solver.e (Solver.sum body)
 
 let rec to_solver = function
-  | Empty -> Solver.empty
+  | Bottom -> Solver.bottom
   | Int -> Solver.constant "builtin:Int"
   | Decimal -> Solver.constant "builtin:Decimal"
   | String -> Solver.constant "builtin:String"
@@ -185,7 +187,7 @@ let rec to_solver = function
           Solver.hom "set:element" (to_solver element) ]
   | Option payload ->
       named_term "Option"
-        [ ("Some:0", to_solver payload); ("None", Solver.empty) ]
+        [ ("Some:0", to_solver payload); ("None", Solver.bottom) ]
   | Edge (kind, tail, head, payload) ->
       let name = match kind with Directed -> "Edge" | Undirected -> "UndirectedEdge" in
       named_term name
@@ -197,7 +199,7 @@ let rec to_solver = function
   | Opaque (hidden, marker) ->
       named_term "$Opaque"
         [ ("hide", to_solver hidden); ("marker", to_solver marker) ]
-  | Error -> Solver.empty
+  | Error -> Solver.bottom
 
 type relation = Yes | No | Deferred
 
@@ -207,7 +209,7 @@ let combine_relations relations =
   else Yes
 
 let rec below left right =
-  if equal left right || left = Empty || left = Error || right = Error then Yes
+  if equal left right || left = Bottom || left = Error || right = Error then Yes
   else if has_variable left || has_variable right then Deferred
   else
     match (left, right) with
@@ -236,7 +238,7 @@ let rec below left right =
     | _ -> No
 
 let rec pretty = function
-  | Empty -> "EmptySet"
+  | Bottom -> "Bottom"
   | Int -> "Int"
   | Decimal -> "Decimal"
   | String -> "String"

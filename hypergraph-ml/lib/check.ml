@@ -63,7 +63,7 @@ type state = {
 }
 
 let builtins =
-  [ "Int"; "Decimal"; "String"; "EmptySet"; "Set"; "Option"; "Edge";
+  [ "Int"; "Decimal"; "String"; "Bottom"; "Set"; "Option"; "Edge";
     "UndirectedEdge"; "Graph"; "Opaque"; "Eq"; "mut" ]
 
 let empty_state () =
@@ -161,7 +161,7 @@ and resolve_named state ~substitution ~seen parameters loc name arguments =
   | "Int" -> arity 0 (fun _ -> Types.Int)
   | "Decimal" -> arity 0 (fun _ -> Types.Decimal)
   | "String" -> arity 0 (fun _ -> Types.String)
-  | "EmptySet" -> arity 0 (fun _ -> Types.Empty)
+  | "Bottom" -> arity 0 (fun _ -> Types.Bottom)
   | "Set" -> arity 1 (function [ element ] -> Types.Set element | _ -> assert false)
   | "Option" -> arity 1 (function [ payload ] -> Types.Option payload | _ -> assert false)
   | "Edge" ->
@@ -251,7 +251,7 @@ let rec constrain_types state loc actual expected reason =
   if actual = Types.Error || expected = Types.Error || Types.equal actual expected then ()
   else
     match (actual, expected) with
-    | Types.Empty, Types.Variable _ -> ()
+    | Types.Bottom, Types.Variable _ -> ()
     | Types.Variable _, _ | _, Types.Variable _ ->
         equal_constraint state loc reason actual expected
     | Types.Set actual, Types.Set expected
@@ -388,7 +388,7 @@ and infer_edge state expression kind left right payload =
   let head = side "right side" right right_type in
   let payload =
     match payload with
-    | None -> Types.Empty
+    | None -> Types.Bottom
     | Some payload -> infer state payload |> protect_for_equality state payload
   in
   ignore expression;
@@ -459,7 +459,7 @@ and infer_variant state expression enum_name variant_name arguments =
         in
         let constructor_payload =
           match payload with
-          | [ (label, { Ast.it = Ast.TyName "EmptySet"; _ }) ]
+          | [ (label, { Ast.it = Ast.TyName "Bottom"; _ }) ]
             when label = variant_name -> []
           | payload -> payload
         in
@@ -510,7 +510,7 @@ and infer_operation state expression operator operands =
   if List.for_all Option.is_some set_types then
     let elements = List.map Option.get set_types in
     (match elements with
-     | [] -> Types.Set Types.Empty
+     | [] -> Types.Set Types.Bottom
      | first :: rest ->
          Types.Set (List.fold_left (Types.apply_set_operator operator) first rest))
   else
@@ -574,7 +574,7 @@ let declare_enum state statement name parameters variants =
     List.concat_map
       (fun variant ->
         match variant.Ast.variant_payload with
-        | [] -> [ (variant.variant_name, Ast.at variant.variant_loc (Ast.TyName "EmptySet")) ]
+        | [] -> [ (variant.variant_name, Ast.at variant.variant_loc (Ast.TyName "Bottom")) ]
         | payload ->
             List.mapi
               (fun index ty -> (Printf.sprintf "%s:%d" variant.variant_name index, ty))
@@ -698,7 +698,7 @@ let run_solver state =
         List.fold_left
           (fun assignment (name, _) ->
             if List.mem_assoc name assignment then assignment
-            else (name, Solver.empty) :: assignment)
+            else (name, Solver.bottom) :: assignment)
           preliminary state.fresh_variables
       in
       if state.coercions = [] then Ok preliminary

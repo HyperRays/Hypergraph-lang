@@ -152,12 +152,12 @@ let maybe_pair = Some(pair)
   expect_type checked "wrapped" (Types.Named ("Wrapped", [ ("Wrap:0", pair) ]));
   expect_type checked "missing"
     (Types.Named
-       ("Deferred", [ ("Present:0", Types.Empty); ("Missing", Types.Empty) ]));
-  expect_type checked "none" (Types.Option Types.Empty);
+       ("Deferred", [ ("Present:0", Types.Bottom); ("Missing", Types.Bottom) ]));
+  expect_type checked "none" (Types.Option Types.Bottom);
   expect_type checked "numbers" (Types.Set Types.Int);
   expect_type checked "all_numbers" (Types.Set Types.Int);
   expect_type checked "edge"
-    (Types.Edge (Types.Directed, Types.Int, Types.Int, Types.Empty));
+    (Types.Edge (Types.Directed, Types.Int, Types.Int, Types.Bottom));
   expect_type checked "payload_edge"
     (Types.Edge (Types.Directed, Types.Int, Types.Int, pair));
   expect_type checked "maybe_pair" (Types.Option pair)

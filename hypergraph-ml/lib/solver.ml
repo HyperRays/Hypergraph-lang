@@ -14,7 +14,7 @@ type assignment = (string * term) list
 type solution = Sat of assignment | Unsat
 type error = Lean_bridge.error
 
-let empty = Zero
+let bottom = Zero
 let constant name = Constant name
 let variable name = Variable name
 

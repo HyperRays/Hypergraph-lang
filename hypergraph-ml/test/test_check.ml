@@ -36,10 +36,10 @@ let pair: Pair<Int,String> = Pair(1, "one")
 let inferred = Pair(2, "two")
 let some: Maybe<Int> = Maybe::Some(3)
 let none: Maybe<Int> = Maybe::None
-let directed: Edge<Int,Int,EmptySet> = {1} -> {2}
-let undirected: UndirectedEdge<Int,Int,EmptySet> = {2} <-> {3}
-let graph: Graph<Int,Int,EmptySet> = {directed, undirected}
-let flattened: Set<Edge<Int,Int,EmptySet>> = {directed, undirected}
+let directed: Edge<Int,Int,Bottom> = {1} -> {2}
+let undirected: UndirectedEdge<Int,Int,Bottom> = {2} <-> {3}
+let graph: Graph<Int,Int,Bottom> = {directed, undirected}
+let flattened: Set<Edge<Int,Int,Bottom>> = {directed, undirected}
 let vertices: mut Vertices<Int> = {1, 2}
 vertices |= {3}
 |}

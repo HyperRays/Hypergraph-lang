@@ -17,8 +17,8 @@ let () =
   check "difference is left typed"
     (equal (apply_set_operator Ast.Difference (sum [ Int; String ]) Decimal)
        (sum [ Int; String ]));
-  let edge = Edge (Directed, Int, String, Empty) in
-  let undirected = Edge (Undirected, Int, String, Empty) in
+  let edge = Edge (Directed, Int, String, Bottom) in
+  let undirected = Edge (Undirected, Int, String, Bottom) in
   check "graph shape" (is_graph (Set (sum [ edge; undirected ])));
   let marker = Named ("marker", []) in
   let left = equality_projection (Opaque (Set edge, marker)) in
