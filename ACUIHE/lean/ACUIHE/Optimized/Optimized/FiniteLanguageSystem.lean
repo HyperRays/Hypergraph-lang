@@ -1,9 +1,11 @@
-import ACUIHE.Solver.Search.Optimized.Automaton
+import ACUIHE.Optimized.Optimized.Automaton
 import ACUIHE.Solver.Search.FiniteLanguageSystem.Completeness
+
+set_option linter.dupNamespace false
 
 /-! The finite-language adapter for the separate optimized automaton solver. -/
 
-namespace ACUIHE.Solver.Search.Optimized
+namespace ACUIHE.Optimized.Optimized
 
 open ACUIHE.Solver.Linear
 open ACUIHE.Solver.Search
@@ -76,4 +78,4 @@ theorem solveFiniteLanguage?_eq_none_iff
         exact False.elim (rejected ⟨values,
           solveFiniteLanguage?_sound problem shallowBound found⟩)
 
-end ACUIHE.Solver.Search.Optimized
+end ACUIHE.Optimized.Optimized

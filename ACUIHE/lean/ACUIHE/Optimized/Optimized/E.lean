@@ -1,12 +1,14 @@
-import ACUIHE.Solver.Search.Optimized.Column
+import ACUIHE.Optimized.Optimized.Column
 import ACUIHE.Solver.Search.E.Reconstruction
+
+set_option linter.dupNamespace false
 
 /-!
 Separate ACUIhE entry point backed by the optimized reachable-state automaton
 solver.  The original `ACUIHE.Solver.Search.solveACUIhE?` is unchanged.
 -/
 
-namespace ACUIHE.Solver.Search.Optimized
+namespace ACUIHE.Optimized.Optimized
 
 open ACUIHE.Solver
 open ACUIHE.Solver.Linear
@@ -217,4 +219,4 @@ theorem solveACUIhE?_eq_none_iff
     exact ⟨assignment, solveACUIhE?_sound left right shallowBound found⟩
   · exact solveACUIhE?_complete left right shallowBound
 
-end ACUIHE.Solver.Search.Optimized
+end ACUIHE.Optimized.Optimized

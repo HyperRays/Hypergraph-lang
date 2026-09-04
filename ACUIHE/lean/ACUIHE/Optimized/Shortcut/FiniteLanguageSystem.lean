@@ -1,9 +1,9 @@
-import ACUIHE.Solver.Search.Optimized.Shortcut.Automaton
+import ACUIHE.Optimized.Shortcut.Automaton
 import ACUIHE.Solver.Search.FiniteLanguageSystem.Completeness
 
 /-! The finite-language adapter for witness-carrying shortcut saturation. -/
 
-namespace ACUIHE.Solver.Search.Optimized.Shortcut
+namespace ACUIHE.Optimized.Shortcut
 
 open ACUIHE.Solver.Linear
 open ACUIHE.Solver.Search
@@ -75,4 +75,4 @@ theorem solveFiniteLanguage?_eq_none_iff
         exact False.elim (rejected ⟨values,
           solveFiniteLanguage?_sound problem found⟩)
 
-end ACUIHE.Solver.Search.Optimized.Shortcut
+end ACUIHE.Optimized.Shortcut

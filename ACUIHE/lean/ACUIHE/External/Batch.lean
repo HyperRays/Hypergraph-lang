@@ -1,5 +1,5 @@
 import ACUIHE.External
-import ACUIHE.Solver.Search.Optimized.Column
+import ACUIHE.Optimized.Optimized.Column
 
 /-!
 # Optimized batched external API
@@ -326,7 +326,7 @@ def solveSystemEConfiguration?
     Option (Matrix Var (SystemCombinationBasis rules system)
       (ACUIHE.Solver.Linear.HomContext Hom)) :=
   if configuration.valid = true then
-    ACUIHE.Solver.Search.Optimized.solveColumnFamily?
+    ACUIHE.Optimized.Optimized.solveColumnFamily?
       (systemCombinationColumnRepresentations rules system configuration)
       shallowBound
   else

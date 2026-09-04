@@ -1,5 +1,5 @@
 import ACUIHE.Solver.Search
-import ACUIHE.Solver.Search.Optimized
+import ACUIHE.Optimized
 
 /-!
 A deterministic grammar-aware fuzz worker for paired solver benchmarks.
@@ -218,10 +218,10 @@ def runSolver (solver : SolverKind) (problem : Problem)
       | .original =>
           (ACUIHE.Solver.Search.solveACUIhE? left right).isSome
       | .optimized =>
-          (ACUIHE.Solver.Search.Optimized.solveACUIhE?
+          (ACUIHE.Optimized.Optimized.solveACUIhE?
             left right shallowBound).isSome
       | .shortcut =>
-          (ACUIHE.Solver.Search.Optimized.Shortcut.solveACUIhE?
+          (ACUIHE.Optimized.Shortcut.solveACUIhE?
             left right).isSome
   let elapsed ← IO.monoMsNow
   pure (satisfiable, elapsed - start)

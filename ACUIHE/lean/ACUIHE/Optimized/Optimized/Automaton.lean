@@ -1,5 +1,8 @@
 import ACUIHE.Solver.Search.Saturation
 
+-- The requested module path intentionally contains `Optimized.Optimized`.
+set_option linter.dupNamespace false
+
 /-!
 An exact automaton solver that is kept separate from the original bounded
 depth-first implementation.
@@ -13,7 +16,7 @@ with the cardinality of the reachable closure rather than the cardinality of
 the full function-space state type.
 -/
 
-namespace ACUIHE.Solver.Search.Optimized
+namespace ACUIHE.Optimized.Optimized
 
 universe u
 
@@ -521,4 +524,4 @@ theorem solve?_eq_none_iff
 
 end Automaton
 
-end ACUIHE.Solver.Search.Optimized
+end ACUIHE.Optimized.Optimized

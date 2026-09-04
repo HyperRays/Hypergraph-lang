@@ -1,4 +1,4 @@
-import ACUIHE.Solver.Search.Optimized.Shortcut.Column
+import ACUIHE.Optimized.Shortcut.Column
 import ACUIHE.Solver.Search.E.Reconstruction
 
 /-!
@@ -6,7 +6,7 @@ Separate ACUIhE entry point backed by witness-carrying shortcut saturation.
 The original and reachable-state optimized solvers remain unchanged.
 -/
 
-namespace ACUIHE.Solver.Search.Optimized.Shortcut
+namespace ACUIHE.Optimized.Shortcut
 
 open ACUIHE.Solver
 open ACUIHE.Solver.Linear
@@ -202,4 +202,4 @@ theorem solveACUIhE?_eq_none_iff
     exact ⟨assignment, solveACUIhE?_sound left right found⟩
   · exact solveACUIhE?_complete left right
 
-end ACUIHE.Solver.Search.Optimized.Shortcut
+end ACUIHE.Optimized.Shortcut

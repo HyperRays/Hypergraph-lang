@@ -36,7 +36,7 @@ configuration.
 Public entry point:
 
 ```lean
-ACUIHE.Solver.Search.Optimized.Shortcut.solveACUIhE? left right
+ACUIHE.Optimized.Shortcut.solveACUIhE? left right
 ```
 
 It has no caller-selected depth/fuel argument.  The finite cardinality bounds

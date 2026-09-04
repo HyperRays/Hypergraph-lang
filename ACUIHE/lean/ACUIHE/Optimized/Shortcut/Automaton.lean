@@ -1,4 +1,4 @@
-import ACUIHE.Solver.Search.Optimized.Automaton
+import ACUIHE.Optimized.Optimized.Automaton
 import Mathlib.Data.Finset.Sort
 
 /-!
@@ -11,12 +11,12 @@ derivation graph.  State lookup uses the numeric `FinEnum` identifier instead
 of equality on the (often function-valued) state itself.
 -/
 
-namespace ACUIHE.Solver.Search.Optimized.Shortcut
+namespace ACUIHE.Optimized.Shortcut
 
 universe u
 
 open ACUIHE.Solver.Search
-open ACUIHE.Solver.Search.Optimized
+open ACUIHE.Optimized.Optimized
 
 abbrev StateId (State : Type u) [FinEnum State] :=
   Fin (FinEnum.card State)
@@ -631,4 +631,4 @@ theorem solve?_eq_none_iff
         exact False.elim (rejected ⟨tree,
           solve?_sound automaton initial found⟩)
 
-end ACUIHE.Solver.Search.Optimized.Shortcut
+end ACUIHE.Optimized.Shortcut
