@@ -29,12 +29,25 @@ let solved_type checked name =
 
 let print_type ty = Format.asprintf "%a" Solver.pp_term (Types.to_solver ty)
 
-let expect_type checked name expected =
-  let actual = solved_type checked name in
-  let expected = print_type expected in
-  if not (String.equal actual expected) then
-    failwith
-      (Printf.sprintf "%s: expected inferred type %s, got %s" name expected actual)
+let expect_types checked expectations =
+  let constraints =
+    List.map
+      (fun (name, expected) ->
+        Solver.Equal ((binding checked name).solved_type, Types.to_solver expected))
+      expectations
+  in
+  match Solver.solve constraints with
+  | Ok (Solver.Sat _) -> ()
+  | Ok Solver.Unsat ->
+      failwith
+        ("inferred types differ from expectations:\n"
+        ^ String.concat "\n"
+            (List.map
+               (fun (name, expected) ->
+                 Printf.sprintf "  %s: expected %s, got %s" name
+                   (print_type expected) (solved_type checked name))
+               expectations))
+  | Error error -> failwith ("type comparison failed: " ^ error.message)
 
 let contains ~needle haystack =
   let needle_length = String.length needle in
@@ -146,21 +159,20 @@ let maybe_pair = Some(pair)
   let pair =
     Types.Named ("Pair", [ ("first", Types.Int); ("second", Types.String) ])
   in
-  expect_type checked "number" Types.Int;
-  expect_type checked "label" Types.String;
-  expect_type checked "pair" pair;
-  expect_type checked "wrapped" (Types.Named ("Wrapped", [ ("Wrap:0", pair) ]));
-  expect_type checked "missing"
-    (Types.Named
-       ("Deferred", [ ("Present:0", Types.Bottom); ("Missing", Types.Bottom) ]));
-  expect_type checked "none" (Types.Option Types.Bottom);
-  expect_type checked "numbers" (Types.Set Types.Int);
-  expect_type checked "all_numbers" (Types.Set Types.Int);
-  expect_type checked "edge"
-    (Types.Edge (Types.Directed, Types.Int, Types.Int, Types.Bottom));
-  expect_type checked "payload_edge"
-    (Types.Edge (Types.Directed, Types.Int, Types.Int, pair));
-  expect_type checked "maybe_pair" (Types.Option pair)
+  expect_types checked
+    [ ("number", Types.Int);
+      ("label", Types.String);
+      ("pair", pair);
+      ("wrapped", Types.Named ("Wrapped", [ ("Wrap:0", pair) ]));
+      ( "missing",
+        Types.Named
+          ("Deferred", [ ("Present:0", Types.Bottom); ("Missing", Types.Bottom) ]) );
+      ("none", Types.Option Types.Bottom);
+      ("numbers", Types.Set Types.Int);
+      ("all_numbers", Types.Set Types.Int);
+      ("edge", Types.Edge (Types.Directed, Types.Int, Types.Int, Types.Bottom));
+      ("payload_edge", Types.Edge (Types.Directed, Types.Int, Types.Int, pair));
+      ("maybe_pair", Types.Option pair) ]
 
 let () =
   expect_annotation_free_document ();

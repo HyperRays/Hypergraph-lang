@@ -112,6 +112,74 @@ theorem checkInequalitySystem_eq_true_iff
   simp [checkInequalitySystem, IsSystemSolution,
     TypeInequality.check_eq_true_iff]
 
+/-!
+## Checked definitional fast path
+
+Type inference commonly produces acyclic equations whose one side is a bare
+variable. Running the general `E`-configuration search on those definitions is
+unnecessarily expensive. The candidate below propagates such definitions only
+when the reverse row is also present, starts every variable at bottom, and is
+accepted only after the ordinary executable system checker validates it.
+-/
+
+/-- Recognize a normal form consisting of exactly one unprefixed variable. -/
+private def directVariable?
+    {Const Var Hom : Type u}
+    [FinEnum Var] [Encodable Const] [Encodable Var] [Encodable Hom]
+    (term : NormalForm Const Var Hom) : Option Var :=
+  (FinEnum.toList Var).find? fun name =>
+    decide (term = variableForm name)
+
+/-- Whether the rewritten system contains the converse of this row. -/
+private def hasReverseRow
+    {Row Const Var Hom : Type u}
+    [FinEnum Row] [Encodable Const] [Encodable Var] [Encodable Hom]
+    (rules : List (BlockReplacement Const Hom))
+    (system : Row → TypeInequality Const Var Hom)
+    (target : TypeInequality Const Var Hom) : Bool :=
+  (FinEnum.toList Row).any fun row =>
+    let candidate := (system row).rewrite rules
+    decide (candidate.left = target.right ∧ candidate.right = target.left)
+
+/-- One propagation pass through reciprocal variable-definition rows. -/
+private def directCandidatePass
+    {Row Const Var Hom : Type u}
+    [FinEnum Row] [FinEnum Var]
+    [Encodable Const] [Encodable Var] [Encodable Hom]
+    (rules : List (BlockReplacement Const Hom))
+    (system : Row → TypeInequality Const Var Hom)
+    (assignment : Var → GroundNormalForm Const Hom) :
+    Var → GroundNormalForm Const Hom :=
+  (FinEnum.toList Row).foldl
+    (fun current row =>
+      let equation := (system row).rewrite rules
+      if hasReverseRow rules system equation then
+        match directVariable? equation.left with
+        | some name =>
+            Function.update current name
+              (ACUIHE.Solver.Search.applyGroundAssignment current equation.right)
+        | none =>
+            match directVariable? equation.right with
+            | some name =>
+                Function.update current name
+                  (ACUIHE.Solver.Search.applyGroundAssignment current equation.left)
+            | none => current
+      else
+        current)
+    assignment
+
+/-- Bottom-seeded bounded propagation candidate for definitional equations. -/
+private def directCandidate
+    {Row Const Var Hom : Type u}
+    [FinEnum Row] [FinEnum Var]
+    [Encodable Const] [Encodable Var] [Encodable Hom]
+    (rules : List (BlockReplacement Const Hom))
+    (system : Row → TypeInequality Const Var Hom) :
+    Var → GroundNormalForm Const Hom :=
+  (List.range ((FinEnum.toList Var).length + 1)).foldl
+    (fun assignment _ => directCandidatePass rules system assignment)
+    (fun _ => ∅)
+
 /--
 Union of all rewritten terms in the system. This is not a conjunction
 encoding: it is used only to enumerate every `E` body that purification may
@@ -291,7 +359,7 @@ Solve all rows simultaneously with the optimized backend. Unlike repeated
 calls to the single-row API, this searches for one assignment matrix satisfying
 the complete family.
 -/
-def solveInequalitySystem?
+private def solveInequalitySystemSearch?
     {Row Const Var Hom : Type u}
     [FinEnum Row]
     [FinEnum Const] [Encodable Const]
@@ -308,7 +376,7 @@ def solveInequalitySystem?
     (FinEnum.toList (SystemEConfiguration rules system))
 
 /-- Every returned assignment satisfies every externally rewritten row. -/
-theorem solveInequalitySystem?_sound
+private theorem solveInequalitySystemSearch?_sound
     {Row Const Var Hom : Type u}
     [FinEnum Row]
     [FinEnum Const] [Encodable Const]
@@ -318,7 +386,7 @@ theorem solveInequalitySystem?_sound
     (system : Row → TypeInequality Const Var Hom)
     (shallowBound : Nat := 8)
     {assignment : Var → GroundNormalForm Const Hom}
-    (found : solveInequalitySystem? rules system shallowBound =
+    (found : solveInequalitySystemSearch? rules system shallowBound =
       some assignment) :
     IsSystemSolution rules system assignment := by
   rcases ACUIHE.Solver.Search.firstSome?_sound _ _ found with
@@ -339,6 +407,75 @@ theorem solveInequalitySystem?_sound
         exact (checkInequalitySystem_eq_true_iff
           rules system candidate).mp checked
       · simp [valuesResult, support, candidate, checked] at configurationFound
+
+/--
+Try the checked definitional candidate before entering complete optimized
+`E`-configuration search. A rejected candidate always falls through to the
+existing search unchanged.
+-/
+def solveInequalitySystem?
+    {Row Const Var Hom : Type u}
+    [FinEnum Row]
+    [FinEnum Const] [Encodable Const]
+    [FinEnum Var] [Encodable Var]
+    [FinEnum Hom] [Encodable Hom]
+    (rules : List (BlockReplacement Const Hom))
+    (system : Row → TypeInequality Const Var Hom)
+    (shallowBound : Nat := 8) :
+    Option (Var → GroundNormalForm Const Hom) :=
+  let candidate := directCandidate rules system
+  if checkInequalitySystem rules system candidate then
+    some candidate
+  else
+    solveInequalitySystemSearch? rules system shallowBound
+
+/-- Every candidate returned by the fast path or fallback solves every row. -/
+theorem solveInequalitySystem?_sound
+    {Row Const Var Hom : Type u}
+    [FinEnum Row]
+    [FinEnum Const] [Encodable Const]
+    [FinEnum Var] [Encodable Var]
+    [FinEnum Hom] [Encodable Hom]
+    (rules : List (BlockReplacement Const Hom))
+    (system : Row → TypeInequality Const Var Hom)
+    (shallowBound : Nat := 8)
+    {assignment : Var → GroundNormalForm Const Hom}
+    (found : solveInequalitySystem? rules system shallowBound =
+      some assignment) :
+    IsSystemSolution rules system assignment := by
+  dsimp only [solveInequalitySystem?] at found
+  split at found
+  · rename_i checked
+    have assignmentEquality : directCandidate rules system = assignment := by
+      simpa using found
+    subst assignment
+    exact (checkInequalitySystem_eq_true_iff
+      rules system (directCandidate rules system)).mp checked
+  · exact solveInequalitySystemSearch?_sound
+      rules system shallowBound found
+
+/--
+The fast path preserves completeness: whenever the previous complete optimized
+search returns a witness, the wrapped solver also returns some witness.
+-/
+theorem solveInequalitySystem?_complete_of_search
+    {Row Const Var Hom : Type u}
+    [FinEnum Row]
+    [FinEnum Const] [Encodable Const]
+    [FinEnum Var] [Encodable Var]
+    [FinEnum Hom] [Encodable Hom]
+    (rules : List (BlockReplacement Const Hom))
+    (system : Row → TypeInequality Const Var Hom)
+    (shallowBound : Nat := 8)
+    (searchComplete : ∃ assignment,
+      solveInequalitySystemSearch? rules system shallowBound = some assignment) :
+    ∃ assignment, solveInequalitySystem? rules system shallowBound =
+      some assignment := by
+  rcases searchComplete with ⟨assignment, found⟩
+  dsimp only [solveInequalitySystem?]
+  split
+  · exact ⟨directCandidate rules system, rfl⟩
+  · exact ⟨assignment, found⟩
 
 /-!
 ## Type-equation interface
