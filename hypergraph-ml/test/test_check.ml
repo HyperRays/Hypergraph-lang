@@ -52,7 +52,7 @@ vertices |= {3}
 
   let invalid =
     {|
-let values: Set<Int> = {1}
+let values = {1}
 values |= {2}
 |}
   in

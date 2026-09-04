@@ -21,15 +21,15 @@ let () =
   let environment =
     run
       {|
-let a: Edge<Int,Int,Bottom> = {1} -> {2}
-let b: UndirectedEdge<Int,Int,Bottom> = {2} <-> {3}
-let g: Set<Edge<Int,Int,Bottom>> = {a, b}
+let a = {1} -> {2}
+let b = {2} <-> {3}
+let g = {a} | b
 let decimals = {1.1, 1.10, 1000000000000000000000000000000.00000000000000000001}
 let left: mut Set<Int> = {1, 2, 3}
 left &= {2, 3, 4}
 left -= {3}
 let edge_left: mut Edge<Int,Int,Bottom> = {1} -> {2}
-let edge_right: Edge<Int,Int,Bottom> = {3} -> {4}
+let edge_right = {3} -> {4}
 edge_left |= edge_right
 let original = {{1} -> {2}}
 let copy = original
@@ -56,8 +56,8 @@ let inline_surgery = ({5} -> {6}) | ({7} -> {8})
 
   let unequal_payloads =
     {|
-let left: Edge<Int,Int,String> = {1} -["Bob"]-> {2}
-let right: Edge<Int,Int,String> = {3} -["Alice"]-> {4}
+let left = {1} -["Bob"]-> {2}
+let right = {3} -["Alice"]-> {4}
 let invalid = left | right
 |}
   in
