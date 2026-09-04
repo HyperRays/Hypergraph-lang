@@ -1,7 +1,7 @@
 # Hypergraph ML
 
 `hypergraph-ml` is the OCaml library implementation of the language specified
-in [`../ACUIHE/lean/Hypergraph-lang.md`](../ACUIHE/lean/Hypergraph-lang.md).
+in [`Hypergraph-lang.md`](Hypergraph-lang.md).
 That document supersedes the former OCaml language and is the source of truth
 for syntax and semantics.
 
@@ -53,3 +53,31 @@ The helper builds the ACUIhE and HypergraphML Lean shared libraries first,
 then supplies their native include/library paths to Dune. The FFI bridge is
 serialized for thread safety. Solver calls are synchronous, exact, unbounded,
 and never return an `Unknown` result.
+
+## Run a document
+
+The runner builds any missing Lean and OCaml artifacts, checks the complete
+document, evaluates it, and prints the final value of each binding in source
+order:
+
+```sh
+cd hypergraph-ml
+./tools/run.sh examples/basic.hg
+```
+
+Expected output:
+
+```text
+alice = Person("Alice")
+bob = Person("Bob")
+knows = {Person("Alice")} -> {Person("Bob")}
+```
+
+Use `-` to read a document from standard input:
+
+```sh
+./tools/run.sh - < examples/basic.hg
+```
+
+Parse, type, and evaluation errors are printed with the file, line, and
+column, and return a non-zero exit status.

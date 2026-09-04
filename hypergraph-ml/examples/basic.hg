@@ -1,0 +1,7 @@
+struct Person {
+  name: String,
+}
+
+let alice = Person("Alice")
+let bob = Person("Bob")
+let knows = {alice} -> {bob}
