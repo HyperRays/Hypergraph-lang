@@ -27,6 +27,15 @@ let binding checked name =
 let solved_type checked name =
   Format.asprintf "%a" Check.pp_solved_type (binding checked name)
 
+let print_type ty = Format.asprintf "%a" Solver.pp_term (Types.to_solver ty)
+
+let expect_type checked name expected =
+  let actual = solved_type checked name in
+  let expected = print_type expected in
+  if not (String.equal actual expected) then
+    failwith
+      (Printf.sprintf "%s: expected inferred type %s, got %s" name expected actual)
+
 let contains ~needle haystack =
   let needle_length = String.length needle in
   let haystack_length = String.length haystack in
@@ -88,6 +97,62 @@ let as_string: Deferred<String> = pending
                diagnostics))
   | Ok _ -> failwith "contradictory constraints across statements were accepted"
 
+let expect_annotation_free_document () =
+  let source =
+    {|
+struct Pair<A,B> {
+  first: A,
+  second: B,
+}
+enum Wrapped<A> {
+  Wrap(A),
+}
+let number = 1
+let label = "one"
+let pair = Pair(number, label)
+let wrapped = Wrapped::Wrap(pair)
+let numbers = {number, 2, 3}
+let all_numbers = numbers | {4}
+let edge = {number} -> {2}
+let payload_edge = {2} -[pair]-> {3}
+let maybe_pair = Some(pair)
+|}
+  in
+  let program = parse source in
+  List.iter
+    (fun statement ->
+      match statement.Ast.it with
+      | Ast.Let (name, Some _, _) ->
+          failwith ("test input unexpectedly annotates binding '" ^ name ^ "'")
+      | _ -> ())
+    program;
+  let checked =
+    match Check.check program with
+    | Ok checked -> checked
+    | Error diagnostics ->
+        failwith
+          ("annotation-free document failed inference: "
+          ^ String.concat "; "
+              (List.map
+                 (fun (diagnostic : Check.diagnostic) -> diagnostic.message)
+                 diagnostics))
+  in
+  let pair =
+    Types.Named ("Pair", [ ("first", Types.Int); ("second", Types.String) ])
+  in
+  expect_type checked "number" Types.Int;
+  expect_type checked "label" Types.String;
+  expect_type checked "pair" pair;
+  expect_type checked "wrapped" (Types.Named ("Wrapped", [ ("Wrap:0", pair) ]));
+  expect_type checked "numbers" (Types.Set Types.Int);
+  expect_type checked "all_numbers" (Types.Set Types.Int);
+  expect_type checked "edge"
+    (Types.Edge (Types.Directed, Types.Int, Types.Int, Types.Empty));
+  expect_type checked "payload_edge"
+    (Types.Edge (Types.Directed, Types.Int, Types.Int, pair));
+  expect_type checked "maybe_pair" (Types.Option pair)
+
 let () =
+  expect_annotation_free_document ();
   expect_whole_file_refinement ();
   expect_whole_file_contradiction ()
