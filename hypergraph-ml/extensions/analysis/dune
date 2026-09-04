@@ -1,0 +1,20 @@
+(library
+ (name hypergraph_analysis)
+ (modules Width Incidence)
+ (libraries hypergraph yojson))
+
+(executable
+ (name hypergraph_analysis_cli)
+ (modules Hypergraph_analysis_cli)
+ (libraries hypergraph hypergraph_analysis))
+
+(test
+ (name test_incidence)
+ (modules Test_incidence)
+ (libraries hypergraph hypergraph_analysis yojson))
+
+(rule
+ (alias runtest)
+ (deps hypergraph_analysis_cli.exe test_cli.sh example.hg)
+ (action
+  (run ./test_cli.sh ./hypergraph_analysis_cli.exe ./example.hg)))

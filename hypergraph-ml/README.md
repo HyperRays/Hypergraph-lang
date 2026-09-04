@@ -81,3 +81,10 @@ Use `-` to read a document from standard input:
 
 Parse, type, and evaluation errors are printed with the file, line, and
 column, and return a non-zero exit status.
+
+## Optional graph analysis
+
+Incidence matrices and query-data export live in a removable extension rather
+than the core library. See
+[`extensions/analysis/README.md`](extensions/analysis/README.md) for its
+standalone command and API.
