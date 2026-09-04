@@ -19,6 +19,11 @@
  (libraries hypergraph))
 
 (test
+ (name test_infer)
+ (modules test_infer)
+ (libraries hypergraph))
+
+(test
  (name test_value)
  (modules test_value)
  (libraries hypergraph))
