@@ -107,10 +107,16 @@ struct Pair<A,B> {
 enum Wrapped<A> {
   Wrap(A),
 }
+enum Deferred<A> {
+  Present(A),
+  Missing,
+}
 let number = 1
 let label = "one"
 let pair = Pair(number, label)
 let wrapped = Wrapped::Wrap(pair)
+let missing = Deferred::Missing
+let none = None
 let numbers = {number, 2, 3}
 let all_numbers = numbers | {4}
 let edge = {number} -> {2}
@@ -144,6 +150,10 @@ let maybe_pair = Some(pair)
   expect_type checked "label" Types.String;
   expect_type checked "pair" pair;
   expect_type checked "wrapped" (Types.Named ("Wrapped", [ ("Wrap:0", pair) ]));
+  expect_type checked "missing"
+    (Types.Named
+       ("Deferred", [ ("Present:0", Types.Empty); ("Missing", Types.Empty) ]));
+  expect_type checked "none" (Types.Option Types.Empty);
   expect_type checked "numbers" (Types.Set Types.Int);
   expect_type checked "all_numbers" (Types.Set Types.Int);
   expect_type checked "edge"
