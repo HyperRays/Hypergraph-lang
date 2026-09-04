@@ -1,6 +1,7 @@
 (library
  (name hypergraph_analysis)
- (modules Width Incidence)
+ (modules Width Incidence Facts)
+ (private_modules Width)
  (libraries hypergraph yojson))
 
 (executable
@@ -13,8 +14,19 @@
  (modules Test_incidence)
  (libraries hypergraph hypergraph_analysis yojson))
 
+(test
+ (name test_facts)
+ (modules Test_facts)
+ (libraries hypergraph hypergraph_analysis))
+
 (rule
  (alias runtest)
  (deps hypergraph_analysis_cli.exe test_cli.sh example.hg)
  (action
   (run ./test_cli.sh ./hypergraph_analysis_cli.exe ./example.hg)))
+
+(rule
+ (alias runtest)
+ (deps hypergraph_analysis_cli.exe test_souffle.sh example.hg)
+ (action
+  (run ./test_souffle.sh ./hypergraph_analysis_cli.exe ./example.hg)))

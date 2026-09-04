@@ -31,3 +31,26 @@ if printf '%s\n' 'let bad = missing' | $cli --incidence - >/dev/null 2>&1; then
   echo "invalid input returned success" >&2
   exit 1
 fi
+
+schema=$($cli --facts-schema "$example")
+case $schema in
+  *'.decl graph(g: id)'*'.decl Person(x: id, name: symbol)'*) ;;
+  *)
+    echo "facts schema output is incomplete" >&2
+    exit 1
+    ;;
+esac
+
+facts=$($cli --facts --tag sample "$example")
+case $facts in
+  *'Person('*'graph("sample:network").'*'tail('*'head('*) ;;
+  *)
+    echo "tagged facts output is incomplete" >&2
+    exit 1
+    ;;
+esac
+
+if $cli --incidence --facts "$example" >/dev/null 2>&1; then
+  echo "incidence and facts modes were accepted together" >&2
+  exit 1
+fi

@@ -9,6 +9,9 @@ type declaration = {
   name : string;
   parameters : string list;
   members : (string * Ast.ty) list;
+  (* Resolved once by the checker so downstream consumers never need to
+     duplicate alias or generic-type interpretation. *)
+  resolved_members : (string * Types.t) list;
 }
 
 type binding = {
@@ -557,13 +560,22 @@ let declare_struct state statement name parameters fields =
     { kind = Struct_kind;
       name;
       parameters;
-      members = List.map (fun field -> (field.Ast.field_name, field.field_type)) fields }
+      members = List.map (fun field -> (field.Ast.field_name, field.field_type)) fields;
+      resolved_members = [] }
   in
-  if valid_new_name state statement.loc name "struct" then
+  let accepted = valid_new_name state statement.loc name "struct" in
+  if accepted then
     state.declarations <- String_map.add name declaration state.declarations;
-  List.iter
-    (fun field -> ignore (resolve_type state parameters field.Ast.field_type))
-    fields
+  let resolved_members =
+    List.map
+      (fun field ->
+        (field.Ast.field_name,
+         resolve_type state parameters field.Ast.field_type))
+      fields
+  in
+  if accepted then
+    state.declarations <-
+      String_map.add name { declaration with resolved_members } state.declarations
 
 let declare_enum state statement name parameters variants =
   validate_parameters state statement.Ast.loc ("enum " ^ name) parameters;
@@ -581,14 +593,20 @@ let declare_enum state statement name parameters variants =
               payload)
       variants
   in
-  let declaration = { kind = Enum_kind; name; parameters; members } in
-  if valid_new_name state statement.loc name "enum" then
+  let declaration =
+    { kind = Enum_kind; name; parameters; members; resolved_members = [] }
+  in
+  let accepted = valid_new_name state statement.loc name "enum" in
+  if accepted then
     state.declarations <- String_map.add name declaration state.declarations;
-  List.iter
-    (fun variant ->
-      List.iter (fun ty -> ignore (resolve_type state parameters ty))
-        variant.Ast.variant_payload)
-    variants
+  let resolved_members =
+    List.map
+      (fun (label, ty) -> (label, resolve_type state parameters ty))
+      members
+  in
+  if accepted then
+    state.declarations <-
+      String_map.add name { declaration with resolved_members } state.declarations
 
 let declare_alias state statement name parameters body =
   validate_parameters state statement.Ast.loc ("alias " ^ name) parameters;
