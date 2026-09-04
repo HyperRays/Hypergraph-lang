@@ -1,72 +1,67 @@
-(* Parse a whole program, reporting failures the way the language talks about
-   itself rather than the way the parser generator does. A user who mixes set
-   operators should be told the rule, not the automaton state. *)
+type error = {
+  line : int;
+  column : int;
+  message : string;
+  note : string option;
+}
 
-type error = { line : int; column : int; message : string;
-               note : string option }
+let position (position : Lexing.position) =
+  (position.pos_lnum, position.pos_cnum - position.pos_bol + 1)
 
-let position (p : Lexing.position) =
-  (p.pos_lnum, p.pos_cnum - p.pos_bol + 1)
-
-(* Shared by both entry points: the same failures mean the same things
-   whether a whole file or one line was read. *)
-let describe_failure lexbuf = function
-  | `Lexer (message, pos) ->
-      let line, column = position pos in
+let failure lexbuf = function
+  | `Lexer (message, at) ->
+      let line, column = position at in
       { line; column; message; note = None }
-  | `Mixed (a, b, (at : Ast.loc)) ->
-      { line = at.line; column = at.column;
+  | `Mixed (left, right, at) ->
+      { line = at.Ast.line;
+        column = at.column;
         message =
           Printf.sprintf
-            "cannot mix '%s' and '%s' in one chain; parenthesize to say which \
-             binds first, as in (a %s b) %s c"
-            (Ast.op_symbol a) (Ast.op_symbol b) (Ast.op_symbol a)
-            (Ast.op_symbol b);
+            "cannot mix '%s' and '%s' in one chain; use parentheses to make the order explicit"
+            (Ast.op_symbol left) (Ast.op_symbol right);
         note = None }
   | `Syntax ->
       let line, column = position (Lexing.lexeme_start_p lexbuf) in
       let found = Lexing.lexeme lexbuf in
-      { line; column;
+      { line;
+        column;
         message =
-          (if found = "" then "unexpected end of input"
-           else
-             Printf.sprintf "unexpected %s"
-               (if found = "\n" then "end of line" else "'" ^ found ^ "'"));
+          if found = "" then "unexpected end of input"
+          else if found = "\n" then "unexpected end of line"
+          else "unexpected '" ^ found ^ "'";
         note =
           Option.map
-            (fun (c, p) ->
-              let l, col = position p in
-              Printf.sprintf "inside '%c' opened at %d:%d" c l col)
+            (fun (delimiter, opened) ->
+              let open_line, open_column = position opened in
+              Printf.sprintf "inside '%c' opened at %d:%d" delimiter open_line
+                open_column)
             (Lexer.unclosed ()) }
 
-let of_problem (p : Validate.problem) =
-  { line = p.loc.line; column = p.loc.column;
-    message = p.what ^ "; " ^ p.why; note = None }
+let validated program =
+  match Validate.check program with
+  | None -> Ok program
+  | Some problem ->
+      Error
+        { line = problem.loc.line;
+          column = problem.loc.column;
+          message = problem.message;
+          note = None }
 
-(* One statement and nothing else. The input is trimmed first, so a trailing
-   newline from a prompt does not read as an empty second statement. *)
-let parse_line (source : string) : (Ast.stmt, error) result =
-  let lexbuf = Lexing.from_string (String.trim source) in
-  Lexer.reset ();
-  match Parser.line Lexer.token lexbuf with
-  | stmt -> (
-      match Validate.check [ stmt ] with
-      | None -> Ok stmt
-      | Some p -> Error (of_problem p))
-  | exception Lexer.Error (m, pos) -> Error (describe_failure lexbuf (`Lexer (m, pos)))
-  | exception Ast.Mixed_ops (a, b, at) -> Error (describe_failure lexbuf (`Mixed (a, b, at)))
-  | exception Parser.Error -> Error (describe_failure lexbuf `Syntax)
-
-let parse (source : string) : (Ast.program, error) result =
+let parse_with entry source =
   let lexbuf = Lexing.from_string source in
   Lexer.reset ();
-  match Parser.program Lexer.token lexbuf with
-  | program -> (
-      (* Restrictions the grammar cannot state without becoming ambiguous. *)
-      match Validate.check program with
-      | None -> Ok program
-      | Some p -> Error (of_problem p))
-  | exception Lexer.Error (m, pos) -> Error (describe_failure lexbuf (`Lexer (m, pos)))
-  | exception Ast.Mixed_ops (a, b, at) ->
-      Error (describe_failure lexbuf (`Mixed (a, b, at)))
-  | exception Parser.Error -> Error (describe_failure lexbuf `Syntax)
+  match entry Lexer.token lexbuf with
+  | program -> validated program
+  | exception Lexer.Error (message, at) ->
+      Error (failure lexbuf (`Lexer (message, at)))
+  | exception Ast.Mixed_ops (left, right, at) ->
+      Error (failure lexbuf (`Mixed (left, right, at)))
+  | exception Parser.Error -> Error (failure lexbuf `Syntax)
+
+let parse source = parse_with Parser.program source
+
+let parse_line source =
+  match parse_with (fun lexer lexbuf -> [ Parser.line lexer lexbuf ]) source with
+  | Ok [ statement ] -> Ok statement
+  | Ok _ -> assert false
+  | Error error -> Error error

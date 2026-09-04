@@ -1,9 +1,9 @@
 (test
- (name test_types)
- (modules test_types)
- (libraries hypergraph))
-
-(test
  (name test_solver)
  (modules test_solver)
  (libraries hypergraph))
+
+(test
+ (name test_parser)
+ (modules test_parser)
+ (libraries hypergraph zarith))

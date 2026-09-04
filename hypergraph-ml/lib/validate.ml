@@ -1,100 +1,72 @@
-(* Two restrictions the grammar states by having narrower nonterminals in three
-   positions, checked here instead.
+type problem = { loc : Ast.loc; message : string }
 
-     set_atom = set | var_name | '(' set_expr ')'    (operands and edge sides)
-     ext_rhs  = edge_expr | set_expr
-
-   Writing those as separate nonterminals would make the parser ambiguous,
-   since '(x)' could reduce either way and no lookahead settles which. The
-   grammar therefore accepts the wider form and this pass rejects what the
-   narrower one would have. That is the same shape as the mixed-operator rule,
-   which also parses broadly so the error can name the operators rather than
-   describe a parser state.
-
-   The AST keeps enough to decide all three. A parenthesised expression leaves
-   no trace, so '(3339)' is an Int wherever it appears, and an operand that is
-   an Int was never set-shaped however it was spelled. *)
-
-type problem = { loc : Ast.loc; what : string; why : string }
-
-let set_shaped = Ast.set_shaped
-
-let describe (n : Ast.node) =
-  match n.it with
+let describe expression =
+  match expression.Ast.it with
   | Ast.Int _ -> "an integer"
-  | Ast.Dec _ -> "a decimal"
-  | Ast.Str _ -> "a string"
-  | Ast.Fronce _ -> "a fronce token"
-  | Ast.Init (name, _, _) -> "a " ^ name ^ " value"
+  | Ast.Decimal _ -> "a decimal"
+  | Ast.String _ -> "a string"
+  | Ast.Apply (name, _, _) -> "a " ^ name ^ " value"
+  | Ast.Variant (name, variant, _) -> name ^ "::" ^ variant
   | Ast.Edge _ -> "an edge"
-  | Ast.UEdge _ -> "an undirected edge"
-  | Ast.Set _ | Ast.Ref _ | Ast.Op _ -> "a set"
+  | Ast.UndirectedEdge _ -> "an undirected edge"
+  | Ast.Set _ | Ast.Ref _ | Ast.SetOp _ -> "a set expression"
 
-let require_set_shaped acc where why node =
-  if set_shaped node then acc
-  else { loc = node.Ast.loc; what = describe node ^ " " ^ where; why } :: acc
+let require_set problems context expression =
+  if Ast.set_shaped expression then problems
+  else
+    { loc = expression.Ast.loc;
+      message =
+        describe expression ^ " cannot be " ^ context
+        ^ "; this position requires a set expression" }
+    :: problems
 
-let rec node acc (n : Ast.node) =
-  let acc =
-    match n.it with
-    | Ast.Op (op, operands) ->
+let rec expression problems value =
+  let problems =
+    match value.Ast.it with
+    | Ast.SetOp (operator, operands) ->
         List.fold_left
-          (fun acc o ->
-            require_set_shaped acc
-              ("as an operand of '" ^ Ast.op_symbol op ^ "'")
-              "set operators combine sets, so each operand must be a set, a \
-               name, or a parenthesised set expression"
-              o)
-          acc operands
-    (* Both sides of an arrow are set expressions. The payload is not, so
-       'a -[5]-> b' is fine while '5 -> b' is not. *)
-    | Ast.Edge (a, b, _) | Ast.UEdge (a, b, _) ->
-        List.fold_left
-          (fun acc side ->
-            require_set_shaped acc "as a side of an edge"
-              "an edge joins sets of vertices, so each side must be a set, a \
-               name, or a parenthesised set expression"
-              side)
-          acc [ a; b ]
-    | _ -> acc
+          (fun problems operand ->
+            require_set problems
+              ("an operand of '" ^ Ast.op_symbol operator ^ "'") operand)
+          problems operands
+    | Ast.Edge (tail, head, _) ->
+        require_set
+          (require_set problems "the tail of an edge" tail)
+          "the head of an edge" head
+    | Ast.UndirectedEdge (left, right, _) ->
+        require_set
+          (require_set problems "a side of an undirected edge" left)
+          "a side of an undirected edge" right
+    | _ -> problems
   in
-  children acc n
+  match value.Ast.it with
+  | Ast.Int _ | Ast.Decimal _ | Ast.String _ | Ast.Ref _ -> problems
+  | Ast.Set values | Ast.SetOp (_, values) | Ast.Apply (_, _, values)
+  | Ast.Variant (_, _, values) -> List.fold_left expression problems values
+  | Ast.Edge (left, right, payload) | Ast.UndirectedEdge (left, right, payload) ->
+      List.fold_left expression problems
+        (left :: right :: Option.to_list payload)
 
-and children acc (n : Ast.node) =
-  match n.it with
-  | Ast.Int _ | Ast.Dec _ | Ast.Str _ | Ast.Ref _ | Ast.Fronce _ -> acc
-  | Ast.Set xs | Ast.Op (_, xs) | Ast.Init (_, _, xs) ->
-      List.fold_left node acc xs
-  | Ast.Edge (a, b, ann) | Ast.UEdge (a, b, ann) ->
-      let acc = node (node acc a) b in
-      Option.fold ~none:acc ~some:(node acc) ann
-
-let stmt acc (s : Ast.stmt) =
-  match s.it with
-  | Ast.SLet (_, _, v) -> node acc v
-  | Ast.SExt (name, op, rhs) ->
-      let acc =
-        match rhs.it with
-        | Ast.Edge _ | Ast.UEdge _ -> acc
+let statement problems statement =
+  match statement.Ast.it with
+  | Ast.Let (_, _, value) -> expression problems value
+  | Ast.Update (name, operator, value) ->
+      let problems =
+        match value.Ast.it with
+        | Ast.Edge _ | Ast.UndirectedEdge _ -> problems
         | _ ->
-            require_set_shaped acc
-              ("on the right of '" ^ Ast.op_symbol op ^ "='")
-              ("'" ^ name ^ " " ^ Ast.op_symbol op
-             ^ "= ...' extends a set or edits an edge, so the right side must \
-                be a set or an edge")
-              rhs
+            require_set problems
+              ("the right side of '" ^ name ^ " " ^ Ast.op_symbol operator ^ "='")
+              value
       in
-      node acc rhs
-  | Ast.SStruct _ | Ast.SType _ -> acc
+      expression problems value
+  | Ast.Struct _ | Ast.Enum _ | Ast.Alias _ -> problems
 
-(* The earliest problem in the source, which is the one a reader fixes first.
-   Later ones are often consequences of it. *)
-let check (p : Ast.program) : problem option =
-  match List.fold_left stmt [] p with
+let check program =
+  match
+    List.fold_left statement [] program
+    |> List.sort (fun left right ->
+         compare (left.loc.line, left.loc.column) (right.loc.line, right.loc.column))
+  with
   | [] -> None
-  | problems ->
-      Some
-        (List.hd
-           (List.sort
-              (fun a b -> compare (a.loc.line, a.loc.column) (b.loc.line, b.loc.column))
-              problems))
+  | first :: _ -> Some first

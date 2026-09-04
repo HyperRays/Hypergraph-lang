@@ -1,62 +1,34 @@
-(* Grammar.
-
-   Menhir is LR(1), so the ordering discipline the PEG grammar documented is
-   gone. 'a set, or an edge whose tail is that set' needs no rule about which
-   alternative to try first: the parser reads the set and then shifts on the
-   arrow if one is there. Ambiguities are conflicts at build time rather than
-   comments asking the next reader to keep the alternatives in order.
-
-   Two restrictions are left to validate.ml because stating them here makes
-   the grammar ambiguous. A set operand and an edge side are set expressions,
-   and 'op=' takes only a set or an edge, but '(x)' can reduce either way and
-   no lookahead settles which. A mixed operator chain parses for a different
-   reason, so the error can name the operators. *)
-
 %{
 open Ast
 
-(* Every node records where it starts, so a diagnostic can point at the
-   operand it means. *)
-let loc_of (p : Lexing.position) : loc =
-  { line = p.pos_lnum; column = p.pos_cnum - p.pos_bol + 1 }
+let loc_of (position : Lexing.position) : loc =
+  { line = position.pos_lnum; column = position.pos_cnum - position.pos_bol + 1 }
 
-let mk p it = { it; loc = loc_of p }
+let located position it = { it; loc = loc_of position }
 
-(* '&' '^' '/' chain, but only one kind per chain. The clashing operator's
-   own position is what the reader needs, so each link carries it. *)
-let chain p first rest =
+let sum position = function
+  | [single] -> single
+  | summands -> located position (TySum summands)
+
+let chain position first rest =
   match rest with
   | [] -> first
-  | (op, _, _) :: _ ->
+  | (operator, _, _) :: _ ->
       List.iter
-        (fun (o, at, _) -> if o <> op then raise (Mixed_ops (op, o, at)))
+        (fun (next, at, _) ->
+          if next <> operator then raise (Mixed_ops (operator, next, at)))
         rest;
-      mk p (Op (op, first :: List.map (fun (_, _, a) -> a) rest))
-
-(* 'Edge(t, h)' and 'Edge(t, h, p)' are the constructor spelling of an arrow,
-   but only when the sides are set expressions, since that is what the arrow
-   form takes. 'Edge(5, {2})' is therefore a struct initialiser naming a struct
-   called Edge, which the checker then rejects for its own reasons. Arity alone
-   is not enough to tell the two apart. *)
-let application p name targs args =
-  mk p
-    (match (name, targs, args) with
-     | "Edge", None, [ t; h ] when set_shaped t && set_shaped h ->
-         Edge (t, h, None)
-     | "Edge", None, [ t; h; q ] when set_shaped t && set_shaped h ->
-         Edge (t, h, Some q)
-     | _ -> Init (name, targs, args))
+      located position
+        (SetOp (operator, first :: List.map (fun (_, _, value) -> value) rest))
 %}
 
-%token <int64>            INT
-%token <float>            DEC
-%token <string>           STRING
-%token <string>           IDENT
-%token <int option>       FRONCE
-%token <Ast.setop>        OP OPEQ
-%token LET STRUCT TYPE
+%token <Z.t> INT
+%token <Q.t> DECIMAL
+%token <string> STRING IDENT
+%token LET STRUCT ENUM ALIAS MUT
 %token LBRACE RBRACE LPAREN RPAREN LT GT
-%token COMMA COLON EQUALS PLUS UNDERSCORE
+%token COMMA COLON DCOLON EQUALS PLUS UNDERSCORE
+%token BAR AMP MINUS BAR_EQ AMP_EQ MINUS_EQ
 %token ARROW_R ARROW_L ARROW_LR
 %token ANN_L ANN_R BANN_L BANN_R
 %token NEWLINE EOF
@@ -66,112 +38,146 @@ let application p name targs args =
 
 %%
 
-(* A statement ends at a newline or at end of input, so two statements cannot
-   share a line. Blank lines are free. *)
-program: nls; xs = stmts; EOF { xs }
+program: newlines; statements = statements; EOF { statements }
+line: newlines; statement = statement; newlines; EOF { statement }
 
-(* One statement and nothing else, for a REPL or anything else that reads a
-   single line. A struct body may still span lines, since the grammar allows
-   newlines there; what this refuses is a SECOND statement, which is the whole
-   difference from 'program'. *)
-line: nls; s = stmt; nls; EOF { s }
+statements:
+  |                                                    { [] }
+  | statement = statement; rest = after_statement     { statement :: rest }
 
-stmts:
-  |                                  { [] }
-  | s = stmt; r = after_stmt         { s :: r }
+after_statement:
+  |                                                    { [] }
+  | newlines1; rest = statements                       { rest }
 
-after_stmt:
-  |                                  { [] }
-  | nls_1; r = stmts                 { r }
+newlines: list(NEWLINE)                                { () }
+newlines1: nonempty_list(NEWLINE)                      { () }
 
-nls:   list(NEWLINE)                 { () }
-nls_1: nonempty_list(NEWLINE)        { () }
+statement:
+  | LET; name = IDENT; annotation = option(annotation); EQUALS; value = expression
+      { located $startpos (Let (name, annotation, value)) }
+  | name = IDENT; operator = update_operator; value = expression
+      { located $startpos (Update (name, operator, value)) }
+  | STRUCT; name = IDENT; parameters = loption(parameters);
+      LBRACE; newlines; fields = fields; RBRACE
+      { located $startpos (Struct (name, parameters, fields)) }
+  | ENUM; name = IDENT; parameters = loption(parameters);
+      LBRACE; newlines; variants = variants; RBRACE
+      { located $startpos (Enum (name, parameters, variants)) }
+  | ALIAS; name = IDENT; parameters = loption(parameters); EQUALS; body = type_sum
+      { located $startpos (Alias (name, parameters, body)) }
 
-stmt:
-  | LET; n = IDENT; t = option(annot); EQUALS; v = rhs
-      { mk $startpos (SLet (n, t, v)) }
-  | n = IDENT; op = OPEQ; v = rhs
-      { mk $startpos (SExt (n, op, v)) }
-  | STRUCT; n = IDENT; ps = loption(params); LBRACE; nls; fs = fields; RBRACE
-      { mk $startpos (SStruct (n, ps, fs)) }
-  | TYPE; n = IDENT; ps = loption(params); EQUALS; b = tsum
-      { mk $startpos (SType (n, ps, b)) }
+annotation:
+  | COLON; mutable_ = boption(MUT); ty = type_sum       { { mutable_; ty } }
 
-annot:  COLON; t = tsum                                  { t }
-params: LT; ps = separated_nonempty_list(COMMA, IDENT); GT { ps }
+parameters:
+  | LT; values = separated_nonempty_list(COMMA, IDENT); GT { values }
 
-(* A newline is free around a separating comma and before the closing brace,
-   which is what lets a struct body span lines. It is not free inside a field. *)
 fields:
-  |                                                      { [] }
-  | f = field; r = fields_tail                           { f :: r }
+  |                                                    { [] }
+  | field = field; rest = field_tail                   { field :: rest }
 
-fields_tail:
-  | nls                                                  { [] }
-  | nls; COMMA; nls                                      { [] }
-  | nls; COMMA; nls; f = field; r = fields_tail          { f :: r }
+field_tail:
+  | newlines                                           { [] }
+  | newlines; COMMA; newlines                          { [] }
+  | newlines; COMMA; newlines; field = field; rest = field_tail
+                                                       { field :: rest }
 
-field: n = IDENT; COLON; t = tsum   { { fname = n; ftype = t } }
+field:
+  | name = IDENT; COLON; ty = type_sum
+      { { field_name = name; field_type = ty; field_loc = loc_of $startpos } }
 
-(* Types are a sum of applications of atoms, where application distributes
-   over '+': F (A + B) = F A + F B. *)
-tsum:  ts = separated_nonempty_list(PLUS, tapp)          { TSyn ts }
-tapp:  xs = nonempty_list(tatom)                         { TApp xs }
+variants:
+  |                                                    { [] }
+  | variant = variant; rest = variant_tail             { variant :: rest }
 
-tatom:
-  | n = IDENT                                            { AName n }
-  | n = IDENT; LT; args = separated_nonempty_list(COMMA, tsum); GT
-                                                         { AArgs (n, args) }
-  | LPAREN; t = tsum; RPAREN                             { make_group t }
+variant_tail:
+  | newlines                                           { [] }
+  | newlines; COMMA; newlines                          { [] }
+  | newlines; COMMA; newlines; variant = variant; rest = variant_tail
+                                                       { variant :: rest }
 
-(* Values. An edge's sides are set expressions, so an arrow following a set is
-   a shift and nothing has to be tried twice. *)
-rhs:
-  | t = sexpr; ARROW_R; h = sexpr        { mk $startpos (Edge (t, h, None)) }
-  | h = sexpr; ARROW_L; t = sexpr        { mk $startpos (Edge (t, h, None)) }
-  | a = sexpr; ARROW_LR; b = sexpr       { mk $startpos (UEdge (a, b, None)) }
-  | t = sexpr; ANN_L;  p = rhs; ANN_R;  h = sexpr
-      { mk $startpos (Edge (t, h, Some p)) }
-  | h = sexpr; BANN_L; p = rhs; BANN_R; t = sexpr
-      { mk $startpos (Edge (t, h, Some p)) }
-  | a = sexpr; BANN_L; p = rhs; ANN_R;  b = sexpr
-      { mk $startpos (UEdge (a, b, Some p)) }
-  | v = value                                            { v }
+variant:
+  | name = IDENT
+      { { variant_name = name; variant_payload = []; variant_loc = loc_of $startpos } }
+  | name = IDENT; LPAREN; payload = separated_nonempty_list(COMMA, type_sum); RPAREN
+      { { variant_name = name; variant_payload = payload;
+          variant_loc = loc_of $startpos } }
+
+type_sum:
+  | values = separated_nonempty_list(PLUS, type_atom)  { sum $startpos values }
+
+type_atom:
+  | name = IDENT                                       { located $startpos (TyName name) }
+  | name = IDENT; LT; arguments = separated_nonempty_list(COMMA, type_sum); GT
+                                                       { located $startpos (TyApply (name, arguments)) }
+  | LPAREN; ty = type_sum; RPAREN                      { ty }
+
+expression:
+  | tail = set_expression; ARROW_R; head = set_expression
+      { located $startpos (Edge (tail, head, None)) }
+  | head = set_expression; ARROW_L; tail = set_expression
+      { located $startpos (Edge (tail, head, None)) }
+  | left = set_expression; ARROW_LR; right = set_expression
+      { located $startpos (UndirectedEdge (left, right, None)) }
+  | tail = set_expression; ANN_L; payload = expression; ANN_R; head = set_expression
+      { located $startpos (Edge (tail, head, Some payload)) }
+  | head = set_expression; BANN_L; payload = expression; BANN_R; tail = set_expression
+      { located $startpos (Edge (tail, head, Some payload)) }
+  | left = set_expression; BANN_L; payload = expression; ANN_R; right = set_expression
+      { located $startpos (UndirectedEdge (left, right, Some payload)) }
+  | value = value                                      { value }
 
 value:
-  | n = INT                                              { mk $startpos (Int n) }
-  | d = DEC                                              { mk $startpos (Dec d) }
-  | s = STRING                                           { mk $startpos (Str s) }
-  | f = FRONCE                                           { mk $startpos (Fronce f) }
-  | n = IDENT; ts = option(inst); LPAREN; args = args; RPAREN
-                                                { application $startpos n ts args }
-  | s = sexpr                                            { s }
+  | value = INT                                        { located $startpos (Int value) }
+  | MINUS; value = INT                                 { located $startpos (Int (Z.neg value)) }
+  | value = DECIMAL                                    { located $startpos (Decimal value) }
+  | MINUS; value = DECIMAL                             { located $startpos (Decimal (Q.neg value)) }
+  | value = STRING                                     { located $startpos (String value) }
+  | enum_name = IDENT; DCOLON; variant_name = IDENT; arguments = option(call_arguments)
+      { located $startpos
+          (Variant (enum_name, variant_name, Option.value arguments ~default:[])) }
+  | name = IDENT; type_arguments = option(type_arguments); arguments = call_arguments
+      { located $startpos (Apply (name, type_arguments, arguments)) }
+  | value = set_expression                             { value }
 
-inst: LT; xs = separated_nonempty_list(COMMA, iarg); GT  { xs }
-iarg:
-  | t = tsum                                             { Some t }
-  | UNDERSCORE                                           { None }
+type_arguments:
+  | LT; arguments = separated_nonempty_list(COMMA, type_argument); GT { arguments }
 
-args:
-  |                                                      { [] }
-  | v = rhs                                              { [v] }
-  | v = rhs; COMMA; vs = args                            { v :: vs }
+type_argument:
+  | ty = type_sum                                      { Some ty }
+  | UNDERSCORE                                         { None }
 
-sexpr: a = satom; r = list(chained)                      { chain $startpos a r }
-chained: op = OP; a = satom                     { (op, loc_of $startpos, a) }
+call_arguments:
+  | LPAREN; arguments = separated_list(COMMA, expression); RPAREN { arguments }
 
-satom:
-  | LBRACE; nls; es = elems; RBRACE              { mk $startpos (make_set es) }
-  | n = IDENT                                    { mk $startpos (Ref n) }
-  | LPAREN; v = rhs; RPAREN                      { v }
+set_expression:
+  | first = set_atom; rest = list(chained_set_atom)    { chain $startpos first rest }
 
-(* Same rule as struct fields: newlines around the comma, not within an
-   element, so '{a\n & b}' is not one set spread over two lines. *)
-elems:
-  |                                                      { [] }
-  | v = rhs; r = elems_tail                              { v :: r }
+chained_set_atom:
+  | operator = set_operator; value = set_atom          { (operator, loc_of $startpos, value) }
 
-elems_tail:
-  | nls                                                  { [] }
-  | nls; COMMA; nls                                      { [] }
-  | nls; COMMA; nls; v = rhs; r = elems_tail             { v :: r }
+set_operator:
+  | BAR                                                { Union }
+  | AMP                                                { Intersection }
+  | MINUS                                              { Difference }
+
+update_operator:
+  | BAR_EQ                                             { Union }
+  | AMP_EQ                                             { Intersection }
+  | MINUS_EQ                                           { Difference }
+
+set_atom:
+  | LBRACE; newlines; elements = elements; RBRACE
+      { located $startpos (Set elements) }
+  | name = IDENT                                       { located $startpos (Ref name) }
+  | LPAREN; value = expression; RPAREN                 { value }
+
+elements:
+  |                                                    { [] }
+  | value = expression; rest = element_tail            { value :: rest }
+
+element_tail:
+  | newlines                                           { [] }
+  | newlines; COMMA; newlines                          { [] }
+  | newlines; COMMA; newlines; value = expression; rest = element_tail
+                                                       { value :: rest }
