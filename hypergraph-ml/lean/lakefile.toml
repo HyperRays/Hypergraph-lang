@@ -1,0 +1,11 @@
+name = "HypergraphML"
+version = "0.1.0"
+defaultTargets = ["HypergraphML"]
+packagesDir = "../../ACUIHE/lean/.lake/packages"
+
+[[require]]
+name = "ACUIHE"
+path = "../../ACUIHE/lean"
+
+[[lean_lib]]
+name = "HypergraphML"
