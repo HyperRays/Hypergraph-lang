@@ -1,0 +1,6 @@
+== report
+parse error: 9:7: an integer on the right of '&='; 's0 &= ...' extends a set or edits an edge, so the right side must be a set or an edge
+== incidence
+parse error: 9:7: an integer on the right of '&='; 's0 &= ...' extends a set or edits an edge, so the right side must be a set or an edge
+== facts
+parse error: 9:7: an integer on the right of '&='; 's0 &= ...' extends a set or edits an edge, so the right side must be a set or an edge

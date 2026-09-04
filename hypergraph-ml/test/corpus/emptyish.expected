@@ -1,0 +1,32 @@
+== report
+stmt 1: a : Set<>
+stmt 2: struct E {}
+stmt 3: b : Set<Set<>>
+typecheck: OK
+== incidence
+== facts
+// hypergraph facts — base relations (see hypergraph-ml/lib/facts.ml)
+.type id <: symbol
+.decl graph(g: id)                      // a drawn graph variable
+.decl graph_name(g: id, name: symbol)   // its source name, tag stripped
+.decl graph_tag(g: id, tag: symbol)     // --tag of the emitting program ("" if none)
+.decl vertex(g: id, v: id)              // v is a row of g
+.decl edge(g: id, e: id)                // e is a column of g
+.decl group(g: id, grp: symbol, e: id)  // atlas grouping, by group label
+.decl tail(e: id, v: id)                // incidence -1 (2 emits both)
+.decl head(e: id, v: id)                // incidence +1 (2 emits both)
+.decl payload(e: id, p: id)             // the edge's '-[p]->' annotation
+.decl show(x: id, text: symbol)         // display form — provenance, not a parsing surface
+.decl val_int(x: id, n: number)
+.decl val_str(x: id, s: symbol)
+.decl val_dec(x: id, d: float)
+.decl val_fronce(x: id, t: symbol)      // "%aN" minted / "%uN" pinned
+.decl val_set(x: id)
+.decl val_elem(x: id, m: id)            // set membership
+.decl val_graph(x: id, g: id)           // a named graph used as a value
+.decl val_edge(x: id, t: id, h: id)     // an edge used as a value (sides are sets)
+.decl val_uedge(x: id, a: id, b: id)
+.decl val_ann(x: id, p: id)             // payload of an edge-valued value
+.decl val_struct(x: id, name: symbol)   // fallback for structs without a usable .decl
+.decl val_arg(x: id, i: number, m: id)
+.decl E(x: id)

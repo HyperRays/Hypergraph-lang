@@ -1,0 +1,134 @@
+== report
+stmt 1: struct City { name: String, pop: Int }
+stmt 2: g1 : Set<Edge> + Set<Edge<Decimal>>
+stmt 3: g2 : Set<>
+stmt 4: g3 : Set<>
+stmt 5: atlas4 : Set<Graph> + Set<Set<>>
+typecheck: OK
+== incidence
+graph g1: 8 vertices x 3 columns (groups: #0[1], #1[1], #2[1])
+                #0[1.5]  #1  #2
+           "a"       -1   .   .
+      "日本橋"       +1   .   .
+             2        .  -1   .
+           2.0        .  -1   .
+           "b"        .  +1   .
+      "Zürich"        .  +1   .
+  City("y", 6)        .   .  -1
+             1        .   .  +1
+
+graph atlas4: 8 vertices x 3 columns (groups: g3[0], g1[3])
+                g1.#0[1.5]  g1.#1  g1.#2
+           "a"          -1      .      .
+      "日本橋"          +1      .      .
+             2           .     -1      .
+           2.0           .     -1      .
+           "b"           .     +1      .
+      "Zürich"           .     +1      .
+  City("y", 6)           .      .     -1
+             1           .      .     +1
+
+== facts
+// hypergraph facts — base relations (see hypergraph-ml/lib/facts.ml)
+.type id <: symbol
+.decl graph(g: id)                      // a drawn graph variable
+.decl graph_name(g: id, name: symbol)   // its source name, tag stripped
+.decl graph_tag(g: id, tag: symbol)     // --tag of the emitting program ("" if none)
+.decl vertex(g: id, v: id)              // v is a row of g
+.decl edge(g: id, e: id)                // e is a column of g
+.decl group(g: id, grp: symbol, e: id)  // atlas grouping, by group label
+.decl tail(e: id, v: id)                // incidence -1 (2 emits both)
+.decl head(e: id, v: id)                // incidence +1 (2 emits both)
+.decl payload(e: id, p: id)             // the edge's '-[p]->' annotation
+.decl show(x: id, text: symbol)         // display form — provenance, not a parsing surface
+.decl val_int(x: id, n: number)
+.decl val_str(x: id, s: symbol)
+.decl val_dec(x: id, d: float)
+.decl val_fronce(x: id, t: symbol)      // "%aN" minted / "%uN" pinned
+.decl val_set(x: id)
+.decl val_elem(x: id, m: id)            // set membership
+.decl val_graph(x: id, g: id)           // a named graph used as a value
+.decl val_edge(x: id, t: id, h: id)     // an edge used as a value (sides are sets)
+.decl val_uedge(x: id, a: id, b: id)
+.decl val_ann(x: id, p: id)             // payload of an edge-valued value
+.decl val_struct(x: id, name: symbol)   // fallback for structs without a usable .decl
+.decl val_arg(x: id, i: number, m: id)
+.decl City(x: id, name: symbol, pop: number)
+show("%v0", "\"a\"").
+val_str("%v0", "a").
+show("%v1", "\"日本橋\"").
+val_str("%v1", "日本橋").
+show("%v2", "2").
+val_int("%v2", 2).
+show("%v3", "2.0").
+val_dec("%v3", 2.0).
+show("%v4", "\"b\"").
+val_str("%v4", "b").
+show("%v5", "\"Zürich\"").
+val_str("%v5", "Zürich").
+show("%v6", "City(\"y\", 6)").
+City("%v6", "y", 6).
+show("%v7", "1").
+val_int("%v7", 1).
+show("%v8", "1.5").
+val_dec("%v8", 1.5).
+graph("g1").
+graph_name("g1", "g1").
+graph_tag("g1", "").
+show("g1", "g1").
+vertex("g1", "%v0").
+vertex("g1", "%v1").
+vertex("g1", "%v2").
+vertex("g1", "%v3").
+vertex("g1", "%v4").
+vertex("g1", "%v5").
+vertex("g1", "%v6").
+vertex("g1", "%v7").
+edge("g1", "%e0").
+group("g1", "#0", "%e0").
+show("%e0", "#0[1.5]").
+tail("%e0", "%v0").
+head("%e0", "%v1").
+payload("%e0", "%v8").
+edge("g1", "%e1").
+group("g1", "#1", "%e1").
+show("%e1", "#1").
+tail("%e1", "%v2").
+tail("%e1", "%v3").
+head("%e1", "%v4").
+head("%e1", "%v5").
+edge("g1", "%e2").
+group("g1", "#2", "%e2").
+show("%e2", "#2").
+tail("%e2", "%v6").
+head("%e2", "%v7").
+graph("atlas4").
+graph_name("atlas4", "atlas4").
+graph_tag("atlas4", "").
+show("atlas4", "atlas4").
+vertex("atlas4", "%v0").
+vertex("atlas4", "%v1").
+vertex("atlas4", "%v2").
+vertex("atlas4", "%v3").
+vertex("atlas4", "%v4").
+vertex("atlas4", "%v5").
+vertex("atlas4", "%v6").
+vertex("atlas4", "%v7").
+edge("atlas4", "%e3").
+group("atlas4", "g1", "%e3").
+show("%e3", "g1.#0[1.5]").
+tail("%e3", "%v0").
+head("%e3", "%v1").
+payload("%e3", "%v8").
+edge("atlas4", "%e4").
+group("atlas4", "g1", "%e4").
+show("%e4", "g1.#1").
+tail("%e4", "%v2").
+tail("%e4", "%v3").
+head("%e4", "%v4").
+head("%e4", "%v5").
+edge("atlas4", "%e5").
+group("atlas4", "g1", "%e5").
+show("%e5", "g1.#2").
+tail("%e5", "%v6").
+head("%e5", "%v7").

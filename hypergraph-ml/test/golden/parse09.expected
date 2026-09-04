@@ -1,0 +1,92 @@
+== report
+stmt 1: error: undefined variable c2
+stmt 1: jca2 : Set<Fronce> + Set<Set<>>
+stmt 2: error: unknown type 'Dcc0'
+stmt 2: error: unknown type 'B1'
+stmt 2: error: unknown type 'Ja_'
+stmt 2: error: 'mut' is not allowed in struct fields
+stmt 2: error: type parameter 'E_' of struct Bb2b is never used by a field
+stmt 2: error: type parameter 'Fy' of struct Bb2b is never used by a field
+stmt 3: bc0_ : Set<String>
+stmt 4: b1 : Int
+typecheck: 7 error(s)
+== incidence
+error[T000]: undefined variable c2
+ --> FILE:1:1
+  |
+1 | let jca2 = {c2 & {} & {},  // inside
+  | ^
+stmt 1: jca2 : Set<Fronce> + Set<Set<>>
+error[T040]: unknown type 'Dcc0'
+ --> FILE:4:1
+  |
+4 | struct Bb2b<E_, Fy> {
+  | ^
+error[T040]: unknown type 'B1'
+ --> FILE:4:1
+  |
+4 | struct Bb2b<E_, Fy> {
+  | ^
+error[T040]: unknown type 'Ja_'
+ --> FILE:4:1
+  |
+4 | struct Bb2b<E_, Fy> {
+  | ^
+error[T000]: 'mut' is not allowed in struct fields
+ --> FILE:4:1
+  |
+4 | struct Bb2b<E_, Fy> {
+  | ^
+error[T030]: type parameter 'E_' of struct Bb2b is never used by a field
+ --> FILE:4:1
+  |
+4 | struct Bb2b<E_, Fy> {
+  | ^
+error[T030]: type parameter 'Fy' of struct Bb2b is never used by a field
+ --> FILE:4:1
+  |
+4 | struct Bb2b<E_, Fy> {
+  | ^
+stmt 3: bc0_ : Set<String>
+stmt 4: b1 : Int
+typecheck: 7 error(s)
+== facts
+error[T000]: undefined variable c2
+ --> FILE:1:1
+  |
+1 | let jca2 = {c2 & {} & {},  // inside
+  | ^
+stmt 1: jca2 : Set<Fronce> + Set<Set<>>
+error[T040]: unknown type 'Dcc0'
+ --> FILE:4:1
+  |
+4 | struct Bb2b<E_, Fy> {
+  | ^
+error[T040]: unknown type 'B1'
+ --> FILE:4:1
+  |
+4 | struct Bb2b<E_, Fy> {
+  | ^
+error[T040]: unknown type 'Ja_'
+ --> FILE:4:1
+  |
+4 | struct Bb2b<E_, Fy> {
+  | ^
+error[T000]: 'mut' is not allowed in struct fields
+ --> FILE:4:1
+  |
+4 | struct Bb2b<E_, Fy> {
+  | ^
+error[T030]: type parameter 'E_' of struct Bb2b is never used by a field
+ --> FILE:4:1
+  |
+4 | struct Bb2b<E_, Fy> {
+  | ^
+error[T030]: type parameter 'Fy' of struct Bb2b is never used by a field
+ --> FILE:4:1
+  |
+4 | struct Bb2b<E_, Fy> {
+  | ^
+stmt 3: bc0_ : Set<String>
+stmt 4: b1 : Int
+typecheck: 7 error(s)

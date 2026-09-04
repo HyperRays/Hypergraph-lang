@@ -1,0 +1,12 @@
+let g0: Graph = {{1} -> {2}}
+let m0: mut Graph = {}
+let e0: mut Edge = {1} -> {2}
+let u0: mut UndirectedEdge = {1} <-> {2}
+let s0: mut Set<Int> = {}
+struct S1<P0, P1> { f0: String, f1: P0 }
+let v2: Fronce = {{-2} ^ {m0} ^ {#}} -[7]-> {{{m0} -> {1.5}}}
+let v3: Int = u0
+e0 ^= {{g0} / {"s"} / {-2}} -["s"]-> {{v2, -2}}
+struct S4<P0, P1> { f0: P1 }
+type S5 = S1
+let v6 = {{s0} -> {-2}} & {g0}

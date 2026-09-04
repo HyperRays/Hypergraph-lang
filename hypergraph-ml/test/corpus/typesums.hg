@@ -1,0 +1,3 @@
+let a: Set<A + B> + Set<C> = {}
+let b: mut (Set<Int> + Set<String>) = {}
+type Z<P, Q> = Set<Edge<P + Q>>

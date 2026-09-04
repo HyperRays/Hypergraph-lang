@@ -1,0 +1,13 @@
+; The browser build: the same entry point compiled two ways.
+;
+;   main.bc.js        js_of_ocaml, one file, loads synchronously
+;   main.bc.wasm.js   wasm_of_ocaml, a loader beside a .wasm in main.bc.wasm.assets
+;
+; The Rust and Haskell pair reached the browser as TWO wasm modules with
+; separate linear memories and a JavaScript trampoline copying bytes between
+; them. One implementation needs neither.
+(executable
+ (name main)
+ (modes js wasm)
+ (libraries hypergraph js_of_ocaml)
+ (preprocess (pps js_of_ocaml-ppx)))

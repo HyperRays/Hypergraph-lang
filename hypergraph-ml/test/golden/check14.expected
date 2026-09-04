@@ -1,0 +1,41 @@
+== report
+stmt 1: g0 : Set<Edge> + Set<UndirectedEdge> + Set<Graph>
+stmt 2: m0 : mut Set<Edge> + Set<UndirectedEdge>
+stmt 3: e0 : mut Edge
+stmt 4: u0 : mut UndirectedEdge
+stmt 5: s0 : mut Set<Int>
+stmt 6: struct S1 { f0: UndirectedEdge }
+stmt 7: struct S2 { f0: Set<Int> + Set<struct S1> }
+stmt 8: error: '^=' on s0: found type Edge, needed type Set<Int> — wrapping it as {...} would not help (op= is invariant); declare s0 with Set<Edge> among its components
+stmt 8: s0 : mut Set<Int>
+typecheck: 1 error(s)
+== incidence
+stmt 1: g0 : Set<Edge> + Set<UndirectedEdge> + Set<Graph>
+stmt 2: m0 : mut Set<Edge> + Set<UndirectedEdge>
+stmt 3: e0 : mut Edge
+stmt 4: u0 : mut UndirectedEdge
+stmt 5: s0 : mut Set<Int>
+stmt 6: struct S1 { f0: UndirectedEdge }
+stmt 7: struct S2 { f0: Set<Int> + Set<struct S1> }
+error[T021]: '^=' on s0: found type Edge, needed type Set<Int> — wrapping it as {...} would not help (op= is invariant); declare s0 with Set<Edge> among its components
+ --> FILE:8:1
+  |
+8 | s0 ^= e0
+  | ^
+stmt 8: s0 : mut Set<Int>
+typecheck: 1 error(s)
+== facts
+stmt 1: g0 : Set<Edge> + Set<UndirectedEdge> + Set<Graph>
+stmt 2: m0 : mut Set<Edge> + Set<UndirectedEdge>
+stmt 3: e0 : mut Edge
+stmt 4: u0 : mut UndirectedEdge
+stmt 5: s0 : mut Set<Int>
+stmt 6: struct S1 { f0: UndirectedEdge }
+stmt 7: struct S2 { f0: Set<Int> + Set<struct S1> }
+error[T021]: '^=' on s0: found type Edge, needed type Set<Int> — wrapping it as {...} would not help (op= is invariant); declare s0 with Set<Edge> among its components
+ --> FILE:8:1
+  |
+8 | s0 ^= e0
+  | ^
+stmt 8: s0 : mut Set<Int>
+typecheck: 1 error(s)

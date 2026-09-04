@@ -1,0 +1,83 @@
+== report
+stmt 1: error: assignment to undefined variable b_x
+stmt 1: error: the RHS of '^=' mints a token with '#', which can never match an existing value — pin it (#N) or bind the value to a name first
+stmt 1: error: undefined variable fzc
+stmt 1: error: undefined variable h
+stmt 1: error: undefined variable az_
+stmt 1: error: undefined variable gc0
+stmt 1: error: operand of '/' mints a token with '#', which can never match an existing value — pin it (#N) or bind the value to a name first
+typecheck: 7 error(s)
+== incidence
+error[T000]: assignment to undefined variable b_x
+ --> FILE:1:1
+  |
+1 | b_x ^= (fzc / h) / {{6274} -> {{}, az_, #} / {"\nZ日"}} / gc0
+  | ^
+error[T000]: the RHS of '^=' mints a token with '#', which can never match an existing value — pin it (#N) or bind the value to a name first
+ --> FILE:1:1
+  |
+1 | b_x ^= (fzc / h) / {{6274} -> {{}, az_, #} / {"\nZ日"}} / gc0
+  | ^
+error[T000]: undefined variable fzc
+ --> FILE:1:1
+  |
+1 | b_x ^= (fzc / h) / {{6274} -> {{}, az_, #} / {"\nZ日"}} / gc0
+  | ^
+error[T000]: undefined variable h
+ --> FILE:1:1
+  |
+1 | b_x ^= (fzc / h) / {{6274} -> {{}, az_, #} / {"\nZ日"}} / gc0
+  | ^
+error[T000]: undefined variable az_
+ --> FILE:1:1
+  |
+1 | b_x ^= (fzc / h) / {{6274} -> {{}, az_, #} / {"\nZ日"}} / gc0
+  | ^
+error[T000]: undefined variable gc0
+ --> FILE:1:1
+  |
+1 | b_x ^= (fzc / h) / {{6274} -> {{}, az_, #} / {"\nZ日"}} / gc0
+  | ^
+error[T000]: operand of '/' mints a token with '#', which can never match an existing value — pin it (#N) or bind the value to a name first
+ --> FILE:1:1
+  |
+1 | b_x ^= (fzc / h) / {{6274} -> {{}, az_, #} / {"\nZ日"}} / gc0
+  | ^
+typecheck: 7 error(s)
+== facts
+error[T000]: assignment to undefined variable b_x
+ --> FILE:1:1
+  |
+1 | b_x ^= (fzc / h) / {{6274} -> {{}, az_, #} / {"\nZ日"}} / gc0
+  | ^
+error[T000]: the RHS of '^=' mints a token with '#', which can never match an existing value — pin it (#N) or bind the value to a name first
+ --> FILE:1:1
+  |
+1 | b_x ^= (fzc / h) / {{6274} -> {{}, az_, #} / {"\nZ日"}} / gc0
+  | ^
+error[T000]: undefined variable fzc
+ --> FILE:1:1
+  |
+1 | b_x ^= (fzc / h) / {{6274} -> {{}, az_, #} / {"\nZ日"}} / gc0
+  | ^
+error[T000]: undefined variable h
+ --> FILE:1:1
+  |
+1 | b_x ^= (fzc / h) / {{6274} -> {{}, az_, #} / {"\nZ日"}} / gc0
+  | ^
+error[T000]: undefined variable az_
+ --> FILE:1:1
+  |
+1 | b_x ^= (fzc / h) / {{6274} -> {{}, az_, #} / {"\nZ日"}} / gc0
+  | ^
+error[T000]: undefined variable gc0
+ --> FILE:1:1
+  |
+1 | b_x ^= (fzc / h) / {{6274} -> {{}, az_, #} / {"\nZ日"}} / gc0
+  | ^
+error[T000]: operand of '/' mints a token with '#', which can never match an existing value — pin it (#N) or bind the value to a name first
+ --> FILE:1:1
+  |
+1 | b_x ^= (fzc / h) / {{6274} -> {{}, az_, #} / {"\nZ日"}} / gc0
+  | ^
+typecheck: 7 error(s)

@@ -1,0 +1,42 @@
+== report
+stmt 1: error: 'mut' cannot appear in a type alias — mut is binding-position syntax
+stmt 2: error: unknown type 'Hy'
+stmt 3: error: undefined variable a0z
+stmt 3: d_2 : unknown
+typecheck: 3 error(s)
+== incidence
+error[T000]: 'mut' cannot appear in a type alias — mut is binding-position syntax
+ --> FILE:2:1
+  |
+2 | type F = mut D
+  | ^
+error[T040]: unknown type 'Hy'
+ --> FILE:3:1
+  |
+3 | type J = Hy
+  | ^
+error[T000]: undefined variable a0z
+ --> FILE:4:1
+  |
+4 | let d_2 = a0z  // trailing
+  | ^
+stmt 3: d_2 : unknown
+typecheck: 3 error(s)
+== facts
+error[T000]: 'mut' cannot appear in a type alias — mut is binding-position syntax
+ --> FILE:2:1
+  |
+2 | type F = mut D
+  | ^
+error[T040]: unknown type 'Hy'
+ --> FILE:3:1
+  |
+3 | type J = Hy
+  | ^
+error[T000]: undefined variable a0z
+ --> FILE:4:1
+  |
+4 | let d_2 = a0z  // trailing
+  | ^
+stmt 3: d_2 : unknown
+typecheck: 3 error(s)

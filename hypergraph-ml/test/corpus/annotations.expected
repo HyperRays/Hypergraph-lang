@@ -1,0 +1,147 @@
+== report
+stmt 1: a : Int
+stmt 2: b : mut Set<Int>
+stmt 3: error: unknown type 'A'
+stmt 3: error: unknown type 'B'
+stmt 3: c : Set<>
+stmt 4: error: unknown type 'Assoc'
+stmt 4: d : Set<>
+stmt 5: e : Int
+stmt 6: error: unknown type 'A'
+stmt 6: error: unknown type 'B'
+stmt 6: f : Set<>
+stmt 7: g : mut Set<Int> + Set<String>
+stmt 8: h : mut Set<Edge> + Set<UndirectedEdge>
+stmt 9: struct P { a: Int, b: String }
+stmt 10: struct Q {}
+stmt 11: struct R<T> { a: T }
+stmt 12: error: type parameter 'T' of struct S is never used by a field
+stmt 12: error: type parameter 'U' of struct S is never used by a field
+stmt 13: struct T2<T> { a: Set<Int> + Set<Edge<T>> }
+stmt 14: type M = Decimal
+stmt 15: type W<T> = Set<Edge<T>>
+stmt 16: error: only set types can be summed; 'P2' is not a set
+stmt 16: error: only set types can be summed; 'Q2' is not a set
+typecheck: 9 error(s)
+== incidence
+stmt 1: a : Int
+stmt 2: b : mut Set<Int>
+error[T040]: unknown type 'A'
+ --> FILE:4:1
+  |
+4 | let c: Set<A> + Set<B> = {}
+  | ^
+error[T040]: unknown type 'B'
+ --> FILE:4:1
+  |
+4 | let c: Set<A> + Set<B> = {}
+  | ^
+stmt 3: c : Set<>
+error[T040]: unknown type 'Assoc'
+ --> FILE:5:1
+  |
+5 | let d: Assoc<Set<Int>, Edge<String>> = {}
+  | ^
+stmt 4: d : Set<>
+stmt 5: e : Int
+error[T040]: unknown type 'A'
+ --> FILE:7:1
+  |
+7 | let f: (A + B) = {}
+  | ^
+error[T040]: unknown type 'B'
+ --> FILE:7:1
+  |
+7 | let f: (A + B) = {}
+  | ^
+stmt 6: f : Set<>
+stmt 7: g : mut Set<Int> + Set<String>
+stmt 8: h : mut Set<Edge> + Set<UndirectedEdge>
+stmt 9: struct P { a: Int, b: String }
+stmt 10: struct Q {}
+stmt 11: struct R<T> { a: T }
+error[T030]: type parameter 'T' of struct S is never used by a field
+ --> FILE:13:1
+   |
+13 | struct S<T, U> { }
+   | ^
+error[T030]: type parameter 'U' of struct S is never used by a field
+ --> FILE:13:1
+   |
+13 | struct S<T, U> { }
+   | ^
+stmt 13: struct T2<T> { a: Set<Int> + Set<Edge<T>> }
+stmt 14: type M = Decimal
+stmt 15: type W<T> = Set<Edge<T>>
+error[T000]: only set types can be summed; 'P2' is not a set
+ --> FILE:17:1
+   |
+17 | type Z<P2, Q2> = Set<Edge<P2 + Q2>>
+   | ^
+error[T000]: only set types can be summed; 'Q2' is not a set
+ --> FILE:17:1
+   |
+17 | type Z<P2, Q2> = Set<Edge<P2 + Q2>>
+   | ^
+typecheck: 9 error(s)
+== facts
+stmt 1: a : Int
+stmt 2: b : mut Set<Int>
+error[T040]: unknown type 'A'
+ --> FILE:4:1
+  |
+4 | let c: Set<A> + Set<B> = {}
+  | ^
+error[T040]: unknown type 'B'
+ --> FILE:4:1
+  |
+4 | let c: Set<A> + Set<B> = {}
+  | ^
+stmt 3: c : Set<>
+error[T040]: unknown type 'Assoc'
+ --> FILE:5:1
+  |
+5 | let d: Assoc<Set<Int>, Edge<String>> = {}
+  | ^
+stmt 4: d : Set<>
+stmt 5: e : Int
+error[T040]: unknown type 'A'
+ --> FILE:7:1
+  |
+7 | let f: (A + B) = {}
+  | ^
+error[T040]: unknown type 'B'
+ --> FILE:7:1
+  |
+7 | let f: (A + B) = {}
+  | ^
+stmt 6: f : Set<>
+stmt 7: g : mut Set<Int> + Set<String>
+stmt 8: h : mut Set<Edge> + Set<UndirectedEdge>
+stmt 9: struct P { a: Int, b: String }
+stmt 10: struct Q {}
+stmt 11: struct R<T> { a: T }
+error[T030]: type parameter 'T' of struct S is never used by a field
+ --> FILE:13:1
+   |
+13 | struct S<T, U> { }
+   | ^
+error[T030]: type parameter 'U' of struct S is never used by a field
+ --> FILE:13:1
+   |
+13 | struct S<T, U> { }
+   | ^
+stmt 13: struct T2<T> { a: Set<Int> + Set<Edge<T>> }
+stmt 14: type M = Decimal
+stmt 15: type W<T> = Set<Edge<T>>
+error[T000]: only set types can be summed; 'P2' is not a set
+ --> FILE:17:1
+   |
+17 | type Z<P2, Q2> = Set<Edge<P2 + Q2>>
+   | ^
+error[T000]: only set types can be summed; 'Q2' is not a set
+ --> FILE:17:1
+   |
+17 | type Z<P2, Q2> = Set<Edge<P2 + Q2>>
+   | ^
+typecheck: 9 error(s)

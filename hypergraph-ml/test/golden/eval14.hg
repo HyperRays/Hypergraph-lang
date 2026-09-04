@@ -1,0 +1,5 @@
+struct City { name: String, pop: Int }
+let g1 = {{"a"} -[1.5]-> {"日本橋"}, {2, 2.0} -> {"b", "Zürich"}, {City("y", 6)} -> {1}}
+let g2 = {}
+let g3 = {}
+let atlas4 = {g3, g1}

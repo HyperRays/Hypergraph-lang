@@ -1,0 +1,121 @@
+== report
+stmt 1: struct City { name: String, pop: Int }
+stmt 2: m1 : mut Set<Edge> + Set<UndirectedEdge>
+stmt 3: t2 : Set<Edge>
+stmt 4: t3 : Set<Edge>
+stmt 5: g4 : Set<Edge> + Set<Edge<Decimal>>
+typecheck: OK
+== incidence
+graph t2: 2 vertices x 1 columns (groups: #0[1])
+            #0
+  "日本橋"  -1
+         1  +1
+
+graph t3: 2 vertices x 1 columns (groups: #0[1])
+            #0
+  "日本橋"  -1
+         1  +1
+
+graph g4: 7 vertices x 3 columns (groups: #0[1], #1[1], #2[1])
+            #0  #1  #2[1.5]
+  "日本橋"  -1   .        .
+       2.0  +1   .        .
+  "Zürich"  +1   .        .
+       "a"   .   2        .
+        t2   .   .       -1
+       1.5   .   .       +1
+         2   .   .       +1
+
+== facts
+// hypergraph facts — base relations (see hypergraph-ml/lib/facts.ml)
+.type id <: symbol
+.decl graph(g: id)                      // a drawn graph variable
+.decl graph_name(g: id, name: symbol)   // its source name, tag stripped
+.decl graph_tag(g: id, tag: symbol)     // --tag of the emitting program ("" if none)
+.decl vertex(g: id, v: id)              // v is a row of g
+.decl edge(g: id, e: id)                // e is a column of g
+.decl group(g: id, grp: symbol, e: id)  // atlas grouping, by group label
+.decl tail(e: id, v: id)                // incidence -1 (2 emits both)
+.decl head(e: id, v: id)                // incidence +1 (2 emits both)
+.decl payload(e: id, p: id)             // the edge's '-[p]->' annotation
+.decl show(x: id, text: symbol)         // display form — provenance, not a parsing surface
+.decl val_int(x: id, n: number)
+.decl val_str(x: id, s: symbol)
+.decl val_dec(x: id, d: float)
+.decl val_fronce(x: id, t: symbol)      // "%aN" minted / "%uN" pinned
+.decl val_set(x: id)
+.decl val_elem(x: id, m: id)            // set membership
+.decl val_graph(x: id, g: id)           // a named graph used as a value
+.decl val_edge(x: id, t: id, h: id)     // an edge used as a value (sides are sets)
+.decl val_uedge(x: id, a: id, b: id)
+.decl val_ann(x: id, p: id)             // payload of an edge-valued value
+.decl val_struct(x: id, name: symbol)   // fallback for structs without a usable .decl
+.decl val_arg(x: id, i: number, m: id)
+.decl City(x: id, name: symbol, pop: number)
+show("%v0", "\"日本橋\"").
+val_str("%v0", "日本橋").
+show("%v1", "1").
+val_int("%v1", 1).
+show("%v2", "2.0").
+val_dec("%v2", 2.0).
+show("%v3", "\"Zürich\"").
+val_str("%v3", "Zürich").
+show("%v4", "\"a\"").
+val_str("%v4", "a").
+show("%v5", "t2").
+val_graph("%v5", "t2").
+show("%v6", "1.5").
+val_dec("%v6", 1.5).
+show("%v7", "2").
+val_int("%v7", 2).
+graph("t2").
+graph_name("t2", "t2").
+graph_tag("t2", "").
+show("t2", "t2").
+vertex("t2", "%v0").
+vertex("t2", "%v1").
+edge("t2", "%e0").
+group("t2", "#0", "%e0").
+show("%e0", "#0").
+tail("%e0", "%v0").
+head("%e0", "%v1").
+graph("t3").
+graph_name("t3", "t3").
+graph_tag("t3", "").
+show("t3", "t3").
+vertex("t3", "%v0").
+vertex("t3", "%v1").
+edge("t3", "%e1").
+group("t3", "#0", "%e1").
+show("%e1", "#0").
+tail("%e1", "%v0").
+head("%e1", "%v1").
+graph("g4").
+graph_name("g4", "g4").
+graph_tag("g4", "").
+show("g4", "g4").
+vertex("g4", "%v0").
+vertex("g4", "%v2").
+vertex("g4", "%v3").
+vertex("g4", "%v4").
+vertex("g4", "%v5").
+vertex("g4", "%v6").
+vertex("g4", "%v7").
+edge("g4", "%e2").
+group("g4", "#0", "%e2").
+show("%e2", "#0").
+tail("%e2", "%v0").
+head("%e2", "%v2").
+head("%e2", "%v3").
+edge("g4", "%e3").
+group("g4", "#1", "%e3").
+show("%e3", "#1").
+tail("%e3", "%v4").
+head("%e3", "%v4").
+edge("g4", "%e4").
+group("g4", "#2", "%e4").
+show("%e4", "#2[1.5]").
+tail("%e4", "%v5").
+head("%e4", "%v6").
+head("%e4", "%v7").
+payload("%e4", "%v6").

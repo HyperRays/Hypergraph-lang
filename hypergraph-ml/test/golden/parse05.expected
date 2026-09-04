@@ -1,0 +1,384 @@
+== report
+stmt 1: error: unknown type 'B1b'
+stmt 1: error: 'mut' is not allowed in struct fields
+stmt 1: error: type parameter 'G' of struct Ez0 is never used by a field
+stmt 2: fy_a : Set<>
+stmt 3: error: undefined variable j2y
+stmt 3: bc0 : Edge<unknown>
+stmt 4: error: undefined variable dy
+stmt 4: error: undefined variable dccy
+stmt 4: error: undefined variable jay
+stmt 4: error: undefined variable d2xc
+stmt 4: error: operand of '^' mints a token with '#', which can never match an existing value — pin it (#N) or bind the value to a name first
+stmt 4: error: undefined variable gy2c
+stmt 4: error: undefined variable hxy
+stmt 4: error: unknown type 'Bazx'
+stmt 4: error: unknown type 'Cx1c'
+stmt 4: error: 'mut' applies to only part of the sum — write 'mut (...)' around the whole type
+stmt 4: b2bz : mut Set<>
+stmt 5: error: undefined variable e
+stmt 5: error: undefined variable c0
+stmt 5: error: undefined variable c
+stmt 5: error: undefined variable e1
+stmt 5: error: undefined variable i
+stmt 5: error: undefined variable h
+stmt 5: error: head of an edge must be a vertex set, but contains edges
+stmt 5: error: unknown type 'Bcy'
+stmt 5: error: unknown type 'F2'
+stmt 5: error: 'mut' applies to only part of the sum — write 'mut (...)' around the whole type
+stmt 5: exy : mut Edge
+stmt 6: error: undefined variable f
+stmt 6: error: undefined variable e10
+stmt 6: error: undefined variable fz
+stmt 6: error: undefined variable j
+stmt 6: error: unknown struct J
+stmt 6: error: unknown struct Cb
+stmt 6: error: operand of '^' mints a token with '#', which can never match an existing value — pin it (#N) or bind the value to a name first
+stmt 6: error: undefined variable f
+stmt 6: error: unknown struct Ac_
+stmt 6: bz : Edge
+typecheck: 33 error(s)
+== incidence
+error[T040]: unknown type 'B1b'
+ --> FILE:2:1
+  |
+2 | struct Ez0<G> {db: mut B1b}
+  | ^
+error[T000]: 'mut' is not allowed in struct fields
+ --> FILE:2:1
+  |
+2 | struct Ez0<G> {db: mut B1b}
+  | ^
+error[T030]: type parameter 'G' of struct Ez0 is never used by a field
+ --> FILE:2:1
+  |
+2 | struct Ez0<G> {db: mut B1b}
+  | ^
+stmt 2: fy_a : Set<>
+error[T000]: undefined variable j2y
+ --> FILE:4:1
+  |
+4 | let bc0 = {} -[j2y]-> {}
+  | ^
+stmt 3: bc0 : Edge<unknown>
+error[T000]: undefined variable dy
+ --> FILE:5:1
+  |
+5 | let b2bz: mut Bazx + Cx1c = (({dy,  // inside
+  | ^
+error[T000]: undefined variable dccy
+ --> FILE:5:1
+  |
+5 | let b2bz: mut Bazx + Cx1c = (({dy,  // inside
+  | ^
+error[T000]: undefined variable jay
+ --> FILE:5:1
+  |
+5 | let b2bz: mut Bazx + Cx1c = (({dy,  // inside
+  | ^
+error[T000]: undefined variable d2xc
+ --> FILE:5:1
+  |
+5 | let b2bz: mut Bazx + Cx1c = (({dy,  // inside
+  | ^
+error[T000]: operand of '^' mints a token with '#', which can never match an existing value — pin it (#N) or bind the value to a name first
+ --> FILE:5:1
+  |
+5 | let b2bz: mut Bazx + Cx1c = (({dy,  // inside
+  | ^
+error[T000]: undefined variable gy2c
+ --> FILE:5:1
+  |
+5 | let b2bz: mut Bazx + Cx1c = (({dy,  // inside
+  | ^
+error[T000]: undefined variable hxy
+ --> FILE:5:1
+  |
+5 | let b2bz: mut Bazx + Cx1c = (({dy,  // inside
+  | ^
+error[T040]: unknown type 'Bazx'
+ --> FILE:5:1
+  |
+5 | let b2bz: mut Bazx + Cx1c = (({dy,  // inside
+  | ^
+error[T040]: unknown type 'Cx1c'
+ --> FILE:5:1
+  |
+5 | let b2bz: mut Bazx + Cx1c = (({dy,  // inside
+  | ^
+error[T000]: 'mut' applies to only part of the sum — write 'mut (...)' around the whole type
+ --> FILE:5:1
+  |
+5 | let b2bz: mut Bazx + Cx1c = (({dy,  // inside
+  | ^
+stmt 4: b2bz : mut Set<>
+error[T000]: undefined variable e
+ --> FILE:10:1
+   |
+10 | let exy: Bcy + mut F2 = Edge(e, {c0 / c -> e1 / i / h,} / {} / {{}})
+   | ^
+error[T000]: undefined variable c0
+ --> FILE:10:1
+   |
+10 | let exy: Bcy + mut F2 = Edge(e, {c0 / c -> e1 / i / h,} / {} / {{}})
+   | ^
+error[T000]: undefined variable c
+ --> FILE:10:1
+   |
+10 | let exy: Bcy + mut F2 = Edge(e, {c0 / c -> e1 / i / h,} / {} / {{}})
+   | ^
+error[T000]: undefined variable e1
+ --> FILE:10:1
+   |
+10 | let exy: Bcy + mut F2 = Edge(e, {c0 / c -> e1 / i / h,} / {} / {{}})
+   | ^
+error[T000]: undefined variable i
+ --> FILE:10:1
+   |
+10 | let exy: Bcy + mut F2 = Edge(e, {c0 / c -> e1 / i / h,} / {} / {{}})
+   | ^
+error[T000]: undefined variable h
+ --> FILE:10:1
+   |
+10 | let exy: Bcy + mut F2 = Edge(e, {c0 / c -> e1 / i / h,} / {} / {{}})
+   | ^
+error[T000]: head of an edge must be a vertex set, but contains edges
+ --> FILE:10:1
+   |
+10 | let exy: Bcy + mut F2 = Edge(e, {c0 / c -> e1 / i / h,} / {} / {{}})
+   | ^
+error[T040]: unknown type 'Bcy'
+ --> FILE:10:1
+   |
+10 | let exy: Bcy + mut F2 = Edge(e, {c0 / c -> e1 / i / h,} / {} / {{}})
+   | ^
+error[T040]: unknown type 'F2'
+ --> FILE:10:1
+   |
+10 | let exy: Bcy + mut F2 = Edge(e, {c0 / c -> e1 / i / h,} / {} / {{}})
+   | ^
+error[T000]: 'mut' applies to only part of the sum — write 'mut (...)' around the whole type
+ --> FILE:10:1
+   |
+10 | let exy: Bcy + mut F2 = Edge(e, {c0 / c -> e1 / i / h,} / {} / {{}})
+   | ^
+stmt 5: exy : mut Edge
+error[T000]: undefined variable f
+ --> FILE:11:1
+   |
+11 | let bz = Edge(f ^ {{e10, fz, {}}, J<mut G<Eyc>, B_01 J1>("\ta\t", 5994, j), Cb(#)} ^ {}, {Ac_<_, _>(954.29, -5818, f),} / ({} ^ {92_92,}))
+   | ^
+error[T000]: undefined variable e10
+ --> FILE:11:1
+   |
+11 | let bz = Edge(f ^ {{e10, fz, {}}, J<mut G<Eyc>, B_01 J1>("\ta\t", 5994, j), Cb(#)} ^ {}, {Ac_<_, _>(954.29, -5818, f),} / ({} ^ {92_92,}))
+   | ^
+error[T000]: undefined variable fz
+ --> FILE:11:1
+   |
+11 | let bz = Edge(f ^ {{e10, fz, {}}, J<mut G<Eyc>, B_01 J1>("\ta\t", 5994, j), Cb(#)} ^ {}, {Ac_<_, _>(954.29, -5818, f),} / ({} ^ {92_92,}))
+   | ^
+error[T000]: undefined variable j
+ --> FILE:11:1
+   |
+11 | let bz = Edge(f ^ {{e10, fz, {}}, J<mut G<Eyc>, B_01 J1>("\ta\t", 5994, j), Cb(#)} ^ {}, {Ac_<_, _>(954.29, -5818, f),} / ({} ^ {92_92,}))
+   | ^
+error[T040]: unknown struct J
+ --> FILE:11:1
+   |
+11 | let bz = Edge(f ^ {{e10, fz, {}}, J<mut G<Eyc>, B_01 J1>("\ta\t", 5994, j), Cb(#)} ^ {}, {Ac_<_, _>(954.29, -5818, f),} / ({} ^ {92_92,}))
+   | ^
+error[T040]: unknown struct Cb
+ --> FILE:11:1
+   |
+11 | let bz = Edge(f ^ {{e10, fz, {}}, J<mut G<Eyc>, B_01 J1>("\ta\t", 5994, j), Cb(#)} ^ {}, {Ac_<_, _>(954.29, -5818, f),} / ({} ^ {92_92,}))
+   | ^
+error[T000]: operand of '^' mints a token with '#', which can never match an existing value — pin it (#N) or bind the value to a name first
+ --> FILE:11:1
+   |
+11 | let bz = Edge(f ^ {{e10, fz, {}}, J<mut G<Eyc>, B_01 J1>("\ta\t", 5994, j), Cb(#)} ^ {}, {Ac_<_, _>(954.29, -5818, f),} / ({} ^ {92_92,}))
+   | ^
+error[T000]: undefined variable f
+ --> FILE:11:1
+   |
+11 | let bz = Edge(f ^ {{e10, fz, {}}, J<mut G<Eyc>, B_01 J1>("\ta\t", 5994, j), Cb(#)} ^ {}, {Ac_<_, _>(954.29, -5818, f),} / ({} ^ {92_92,}))
+   | ^
+error[T040]: unknown struct Ac_
+ --> FILE:11:1
+   |
+11 | let bz = Edge(f ^ {{e10, fz, {}}, J<mut G<Eyc>, B_01 J1>("\ta\t", 5994, j), Cb(#)} ^ {}, {Ac_<_, _>(954.29, -5818, f),} / ({} ^ {92_92,}))
+   | ^
+stmt 6: bz : Edge
+typecheck: 33 error(s)
+== facts
+error[T040]: unknown type 'B1b'
+ --> FILE:2:1
+  |
+2 | struct Ez0<G> {db: mut B1b}
+  | ^
+error[T000]: 'mut' is not allowed in struct fields
+ --> FILE:2:1
+  |
+2 | struct Ez0<G> {db: mut B1b}
+  | ^
+error[T030]: type parameter 'G' of struct Ez0 is never used by a field
+ --> FILE:2:1
+  |
+2 | struct Ez0<G> {db: mut B1b}
+  | ^
+stmt 2: fy_a : Set<>
+error[T000]: undefined variable j2y
+ --> FILE:4:1
+  |
+4 | let bc0 = {} -[j2y]-> {}
+  | ^
+stmt 3: bc0 : Edge<unknown>
+error[T000]: undefined variable dy
+ --> FILE:5:1
+  |
+5 | let b2bz: mut Bazx + Cx1c = (({dy,  // inside
+  | ^
+error[T000]: undefined variable dccy
+ --> FILE:5:1
+  |
+5 | let b2bz: mut Bazx + Cx1c = (({dy,  // inside
+  | ^
+error[T000]: undefined variable jay
+ --> FILE:5:1
+  |
+5 | let b2bz: mut Bazx + Cx1c = (({dy,  // inside
+  | ^
+error[T000]: undefined variable d2xc
+ --> FILE:5:1
+  |
+5 | let b2bz: mut Bazx + Cx1c = (({dy,  // inside
+  | ^
+error[T000]: operand of '^' mints a token with '#', which can never match an existing value — pin it (#N) or bind the value to a name first
+ --> FILE:5:1
+  |
+5 | let b2bz: mut Bazx + Cx1c = (({dy,  // inside
+  | ^
+error[T000]: undefined variable gy2c
+ --> FILE:5:1
+  |
+5 | let b2bz: mut Bazx + Cx1c = (({dy,  // inside
+  | ^
+error[T000]: undefined variable hxy
+ --> FILE:5:1
+  |
+5 | let b2bz: mut Bazx + Cx1c = (({dy,  // inside
+  | ^
+error[T040]: unknown type 'Bazx'
+ --> FILE:5:1
+  |
+5 | let b2bz: mut Bazx + Cx1c = (({dy,  // inside
+  | ^
+error[T040]: unknown type 'Cx1c'
+ --> FILE:5:1
+  |
+5 | let b2bz: mut Bazx + Cx1c = (({dy,  // inside
+  | ^
+error[T000]: 'mut' applies to only part of the sum — write 'mut (...)' around the whole type
+ --> FILE:5:1
+  |
+5 | let b2bz: mut Bazx + Cx1c = (({dy,  // inside
+  | ^
+stmt 4: b2bz : mut Set<>
+error[T000]: undefined variable e
+ --> FILE:10:1
+   |
+10 | let exy: Bcy + mut F2 = Edge(e, {c0 / c -> e1 / i / h,} / {} / {{}})
+   | ^
+error[T000]: undefined variable c0
+ --> FILE:10:1
+   |
+10 | let exy: Bcy + mut F2 = Edge(e, {c0 / c -> e1 / i / h,} / {} / {{}})
+   | ^
+error[T000]: undefined variable c
+ --> FILE:10:1
+   |
+10 | let exy: Bcy + mut F2 = Edge(e, {c0 / c -> e1 / i / h,} / {} / {{}})
+   | ^
+error[T000]: undefined variable e1
+ --> FILE:10:1
+   |
+10 | let exy: Bcy + mut F2 = Edge(e, {c0 / c -> e1 / i / h,} / {} / {{}})
+   | ^
+error[T000]: undefined variable i
+ --> FILE:10:1
+   |
+10 | let exy: Bcy + mut F2 = Edge(e, {c0 / c -> e1 / i / h,} / {} / {{}})
+   | ^
+error[T000]: undefined variable h
+ --> FILE:10:1
+   |
+10 | let exy: Bcy + mut F2 = Edge(e, {c0 / c -> e1 / i / h,} / {} / {{}})
+   | ^
+error[T000]: head of an edge must be a vertex set, but contains edges
+ --> FILE:10:1
+   |
+10 | let exy: Bcy + mut F2 = Edge(e, {c0 / c -> e1 / i / h,} / {} / {{}})
+   | ^
+error[T040]: unknown type 'Bcy'
+ --> FILE:10:1
+   |
+10 | let exy: Bcy + mut F2 = Edge(e, {c0 / c -> e1 / i / h,} / {} / {{}})
+   | ^
+error[T040]: unknown type 'F2'
+ --> FILE:10:1
+   |
+10 | let exy: Bcy + mut F2 = Edge(e, {c0 / c -> e1 / i / h,} / {} / {{}})
+   | ^
+error[T000]: 'mut' applies to only part of the sum — write 'mut (...)' around the whole type
+ --> FILE:10:1
+   |
+10 | let exy: Bcy + mut F2 = Edge(e, {c0 / c -> e1 / i / h,} / {} / {{}})
+   | ^
+stmt 5: exy : mut Edge
+error[T000]: undefined variable f
+ --> FILE:11:1
+   |
+11 | let bz = Edge(f ^ {{e10, fz, {}}, J<mut G<Eyc>, B_01 J1>("\ta\t", 5994, j), Cb(#)} ^ {}, {Ac_<_, _>(954.29, -5818, f),} / ({} ^ {92_92,}))
+   | ^
+error[T000]: undefined variable e10
+ --> FILE:11:1
+   |
+11 | let bz = Edge(f ^ {{e10, fz, {}}, J<mut G<Eyc>, B_01 J1>("\ta\t", 5994, j), Cb(#)} ^ {}, {Ac_<_, _>(954.29, -5818, f),} / ({} ^ {92_92,}))
+   | ^
+error[T000]: undefined variable fz
+ --> FILE:11:1
+   |
+11 | let bz = Edge(f ^ {{e10, fz, {}}, J<mut G<Eyc>, B_01 J1>("\ta\t", 5994, j), Cb(#)} ^ {}, {Ac_<_, _>(954.29, -5818, f),} / ({} ^ {92_92,}))
+   | ^
+error[T000]: undefined variable j
+ --> FILE:11:1
+   |
+11 | let bz = Edge(f ^ {{e10, fz, {}}, J<mut G<Eyc>, B_01 J1>("\ta\t", 5994, j), Cb(#)} ^ {}, {Ac_<_, _>(954.29, -5818, f),} / ({} ^ {92_92,}))
+   | ^
+error[T040]: unknown struct J
+ --> FILE:11:1
+   |
+11 | let bz = Edge(f ^ {{e10, fz, {}}, J<mut G<Eyc>, B_01 J1>("\ta\t", 5994, j), Cb(#)} ^ {}, {Ac_<_, _>(954.29, -5818, f),} / ({} ^ {92_92,}))
+   | ^
+error[T040]: unknown struct Cb
+ --> FILE:11:1
+   |
+11 | let bz = Edge(f ^ {{e10, fz, {}}, J<mut G<Eyc>, B_01 J1>("\ta\t", 5994, j), Cb(#)} ^ {}, {Ac_<_, _>(954.29, -5818, f),} / ({} ^ {92_92,}))
+   | ^
+error[T000]: operand of '^' mints a token with '#', which can never match an existing value — pin it (#N) or bind the value to a name first
+ --> FILE:11:1
+   |
+11 | let bz = Edge(f ^ {{e10, fz, {}}, J<mut G<Eyc>, B_01 J1>("\ta\t", 5994, j), Cb(#)} ^ {}, {Ac_<_, _>(954.29, -5818, f),} / ({} ^ {92_92,}))
+   | ^
+error[T000]: undefined variable f
+ --> FILE:11:1
+   |
+11 | let bz = Edge(f ^ {{e10, fz, {}}, J<mut G<Eyc>, B_01 J1>("\ta\t", 5994, j), Cb(#)} ^ {}, {Ac_<_, _>(954.29, -5818, f),} / ({} ^ {92_92,}))
+   | ^
+error[T040]: unknown struct Ac_
+ --> FILE:11:1
+   |
+11 | let bz = Edge(f ^ {{e10, fz, {}}, J<mut G<Eyc>, B_01 J1>("\ta\t", 5994, j), Cb(#)} ^ {}, {Ac_<_, _>(954.29, -5818, f),} / ({} ^ {92_92,}))
+   | ^
+stmt 6: bz : Edge
+typecheck: 33 error(s)

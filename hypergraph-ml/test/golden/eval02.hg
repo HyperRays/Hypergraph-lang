@@ -1,0 +1,4 @@
+struct City { name: String, pop: Int }
+let g1 = {}
+let u2: mut Set<Edge> = {g1, "日本橋"} <-> {"Zürich"}
+let z3 = u2

@@ -1,0 +1,8 @@
+let g0: Graph = {{1} -> {2}}
+let m0: mut Graph = {}
+let e0: mut Edge = {1} -> {2}
+let u0: mut UndirectedEdge = {1} <-> {2}
+let s0: mut Set<Int> = {}
+let v1: Decimal = -2
+u0 &= g0
+let v2 = {u0}

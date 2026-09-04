@@ -1,0 +1,7 @@
+struct City { name: String, pop: Int }
+let empty = {}
+let empty2 = {}
+let m1: mut Graph = {{2.0} -> {2.0}, {City("x", 6)} -> {2}}
+let t2 = {{empty2} -> {1}}
+let t3 = {{empty2} -> {1}}
+let v4 = t2 / t3

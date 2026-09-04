@@ -1,0 +1,61 @@
+== report
+stmt 1: error: unknown type 'I2ab'
+stmt 1: error: 'mut' is not allowed in struct fields
+stmt 1: error: unknown type 'Bz'
+stmt 2: error: unknown type 'Aaa'
+stmt 2: error: types cannot be juxtaposed: 'Ey H<...>' has no meaning
+typecheck: 5 error(s)
+== incidence
+error[T040]: unknown type 'I2ab'
+ --> FILE:1:1
+  |
+1 | struct Ib {
+  | ^
+error[T000]: 'mut' is not allowed in struct fields
+ --> FILE:1:1
+  |
+1 | struct Ib {
+  | ^
+error[T040]: unknown type 'Bz'
+ --> FILE:1:1
+  |
+1 | struct Ib {
+  | ^
+error[T040]: unknown type 'Aaa'
+ --> FILE:4:1
+  |
+4 | type Iy = Aaa<Dx1b, Gxx + Czac Ecab> + Ey H<(Ez + Ex) C_a0<B_> + C_c I2c2, D B12a<Ha1, Hby>>
+  | ^
+error[T000]: types cannot be juxtaposed: 'Ey H<...>' has no meaning
+ --> FILE:4:1
+  |
+4 | type Iy = Aaa<Dx1b, Gxx + Czac Ecab> + Ey H<(Ez + Ex) C_a0<B_> + C_c I2c2, D B12a<Ha1, Hby>>
+  | ^
+typecheck: 5 error(s)
+== facts
+error[T040]: unknown type 'I2ab'
+ --> FILE:1:1
+  |
+1 | struct Ib {
+  | ^
+error[T000]: 'mut' is not allowed in struct fields
+ --> FILE:1:1
+  |
+1 | struct Ib {
+  | ^
+error[T040]: unknown type 'Bz'
+ --> FILE:1:1
+  |
+1 | struct Ib {
+  | ^
+error[T040]: unknown type 'Aaa'
+ --> FILE:4:1
+  |
+4 | type Iy = Aaa<Dx1b, Gxx + Czac Ecab> + Ey H<(Ez + Ex) C_a0<B_> + C_c I2c2, D B12a<Ha1, Hby>>
+  | ^
+error[T000]: types cannot be juxtaposed: 'Ey H<...>' has no meaning
+ --> FILE:4:1
+  |
+4 | type Iy = Aaa<Dx1b, Gxx + Czac Ecab> + Ey H<(Ez + Ex) C_a0<B_> + C_c I2c2, D B12a<Ha1, Hby>>
+  | ^
+typecheck: 5 error(s)

@@ -1,0 +1,17 @@
+// Every position a type can be written in.
+let a: Int = 5
+let b: mut Set<Int> = {}
+let c: Set<A> + Set<B> = {}
+let d: Assoc<Set<Int>, Edge<String>> = {}
+let e: (Int) = 5
+let f: (A + B) = {}
+let g: mut (Set<Int> + Set<String>) = {}
+let h: mut Graph = {}
+struct P { a: Int, b: String }
+struct Q { }
+struct R<T> { a: T }
+struct S<T, U> { }
+struct T2<T> { a: Set<Edge<T>> + Set<Int> }
+type M = Decimal
+type W<T> = Set<Edge<T>>
+type Z<P2, Q2> = Set<Edge<P2 + Q2>>

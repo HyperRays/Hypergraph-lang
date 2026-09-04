@@ -1,0 +1,89 @@
+== report
+stmt 1: g : Set<Edge>
+stmt 2: h : Set<Edge>
+stmt 3: i : Set<Set<Int>>
+typecheck: OK
+== incidence
+graph g: 2 vertices x 1 columns (groups: #0[1])
+     #0
+  1  -1
+  2  +1
+
+graph h: 5 vertices x 3 columns (groups: #0[1], #1[1], #2[1])
+     #0  #1  #2
+  1  -1   .   .
+  2  +1  -1   .
+  3   .  +1   .
+  4   .   .  -1
+  5   .   .  +1
+
+== facts
+// hypergraph facts — base relations (see hypergraph-ml/lib/facts.ml)
+.type id <: symbol
+.decl graph(g: id)                      // a drawn graph variable
+.decl graph_name(g: id, name: symbol)   // its source name, tag stripped
+.decl graph_tag(g: id, tag: symbol)     // --tag of the emitting program ("" if none)
+.decl vertex(g: id, v: id)              // v is a row of g
+.decl edge(g: id, e: id)                // e is a column of g
+.decl group(g: id, grp: symbol, e: id)  // atlas grouping, by group label
+.decl tail(e: id, v: id)                // incidence -1 (2 emits both)
+.decl head(e: id, v: id)                // incidence +1 (2 emits both)
+.decl payload(e: id, p: id)             // the edge's '-[p]->' annotation
+.decl show(x: id, text: symbol)         // display form — provenance, not a parsing surface
+.decl val_int(x: id, n: number)
+.decl val_str(x: id, s: symbol)
+.decl val_dec(x: id, d: float)
+.decl val_fronce(x: id, t: symbol)      // "%aN" minted / "%uN" pinned
+.decl val_set(x: id)
+.decl val_elem(x: id, m: id)            // set membership
+.decl val_graph(x: id, g: id)           // a named graph used as a value
+.decl val_edge(x: id, t: id, h: id)     // an edge used as a value (sides are sets)
+.decl val_uedge(x: id, a: id, b: id)
+.decl val_ann(x: id, p: id)             // payload of an edge-valued value
+.decl val_struct(x: id, name: symbol)   // fallback for structs without a usable .decl
+.decl val_arg(x: id, i: number, m: id)
+show("%v0", "1").
+val_int("%v0", 1).
+show("%v1", "2").
+val_int("%v1", 2).
+show("%v2", "3").
+val_int("%v2", 3).
+show("%v3", "4").
+val_int("%v3", 4).
+show("%v4", "5").
+val_int("%v4", 5).
+graph("g").
+graph_name("g", "g").
+graph_tag("g", "").
+show("g", "g").
+vertex("g", "%v0").
+vertex("g", "%v1").
+edge("g", "%e0").
+group("g", "#0", "%e0").
+show("%e0", "#0").
+tail("%e0", "%v0").
+head("%e0", "%v1").
+graph("h").
+graph_name("h", "h").
+graph_tag("h", "").
+show("h", "h").
+vertex("h", "%v0").
+vertex("h", "%v1").
+vertex("h", "%v2").
+vertex("h", "%v3").
+vertex("h", "%v4").
+edge("h", "%e1").
+group("h", "#0", "%e1").
+show("%e1", "#0").
+tail("%e1", "%v0").
+head("%e1", "%v1").
+edge("h", "%e2").
+group("h", "#1", "%e2").
+show("%e2", "#1").
+tail("%e2", "%v1").
+head("%e2", "%v2").
+edge("h", "%e3").
+group("h", "#2", "%e3").
+show("%e3", "#2").
+tail("%e3", "%v3").
+head("%e3", "%v4").

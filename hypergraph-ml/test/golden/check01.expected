@@ -1,0 +1,58 @@
+== report
+stmt 1: g0 : Set<Edge> + Set<UndirectedEdge> + Set<Graph>
+stmt 2: m0 : mut Set<Edge> + Set<UndirectedEdge>
+stmt 3: e0 : mut Edge
+stmt 4: u0 : mut UndirectedEdge
+stmt 5: s0 : mut Set<Int>
+stmt 6: v1 : Set<Int>
+stmt 7: v2 : Set<Int>
+stmt 8: error: declared v3: Int, but found type Set<Edge> + Set<UndirectedEdge> + Set<Graph>
+stmt 8: v3 : mut Int
+stmt 9: error: declared v4: Set<Graph>, but found type Set<Edge> + Set<UndirectedEdge>
+stmt 9: v4 : Set<Graph>
+stmt 10: struct S5 { f0: Set<Graph> }
+typecheck: 2 error(s)
+== incidence
+stmt 1: g0 : Set<Edge> + Set<UndirectedEdge> + Set<Graph>
+stmt 2: m0 : mut Set<Edge> + Set<UndirectedEdge>
+stmt 3: e0 : mut Edge
+stmt 4: u0 : mut UndirectedEdge
+stmt 5: s0 : mut Set<Int>
+stmt 6: v1 : Set<Int>
+stmt 7: v2 : Set<Int>
+error[T010]: declared v3: Int, but found type Set<Edge> + Set<UndirectedEdge> + Set<Graph>
+ --> FILE:8:1
+  |
+8 | let v3: mut Int = g0
+  | ^
+stmt 8: v3 : mut Int
+error[T010]: declared v4: Set<Graph>, but found type Set<Edge> + Set<UndirectedEdge>
+ --> FILE:9:1
+  |
+9 | let v4: Set<Set<Edge>> + Set<Graph> = m0
+  | ^
+stmt 9: v4 : Set<Graph>
+stmt 10: struct S5 { f0: Set<Graph> }
+typecheck: 2 error(s)
+== facts
+stmt 1: g0 : Set<Edge> + Set<UndirectedEdge> + Set<Graph>
+stmt 2: m0 : mut Set<Edge> + Set<UndirectedEdge>
+stmt 3: e0 : mut Edge
+stmt 4: u0 : mut UndirectedEdge
+stmt 5: s0 : mut Set<Int>
+stmt 6: v1 : Set<Int>
+stmt 7: v2 : Set<Int>
+error[T010]: declared v3: Int, but found type Set<Edge> + Set<UndirectedEdge> + Set<Graph>
+ --> FILE:8:1
+  |
+8 | let v3: mut Int = g0
+  | ^
+stmt 8: v3 : mut Int
+error[T010]: declared v4: Set<Graph>, but found type Set<Edge> + Set<UndirectedEdge>
+ --> FILE:9:1
+  |
+9 | let v4: Set<Set<Edge>> + Set<Graph> = m0
+  | ^
+stmt 9: v4 : Set<Graph>
+stmt 10: struct S5 { f0: Set<Graph> }
+typecheck: 2 error(s)

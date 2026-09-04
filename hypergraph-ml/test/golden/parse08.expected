@@ -1,0 +1,259 @@
+== report
+stmt 1: error: assignment to undefined variable c12
+stmt 1: error: the RHS of '/=' mints a token with '#', which can never match an existing value — pin it (#N) or bind the value to a name first
+stmt 1: error: undefined variable i
+stmt 1: error: undefined variable hz
+stmt 1: error: undefined variable gxza
+stmt 1: error: undefined variable bzax
+stmt 1: error: undefined variable ga
+stmt 1: error: undefined variable exxz
+stmt 1: error: undefined variable ac0c
+stmt 1: error: undefined variable i
+stmt 1: error: undefined variable h
+stmt 1: error: undefined variable db
+stmt 1: error: undefined variable eba
+stmt 1: error: undefined variable a2zy
+stmt 1: error: undefined variable a2y2
+stmt 1: error: undefined variable a2z1
+stmt 1: error: undefined variable a0z
+stmt 2: error: unknown type 'Ibxc'
+stmt 2: error: type parameter 'Aa_' of struct F is never used by a field
+stmt 3: error: types cannot be juxtaposed: 'Bz<...> I01' has no meaning
+stmt 3: error: unknown type 'A'
+stmt 3: error: unknown type 'G0'
+stmt 3: error: unknown type 'D'
+typecheck: 23 error(s)
+== incidence
+error[T000]: assignment to undefined variable c12
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: the RHS of '/=' mints a token with '#', which can never match an existing value — pin it (#N) or bind the value to a name first
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable i
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable hz
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable gxza
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable bzax
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable ga
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable exxz
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable ac0c
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable i
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable h
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable db
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable eba
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable a2zy
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable a2y2
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable a2z1
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable a0z
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T040]: unknown type 'Ibxc'
+ --> FILE:4:1
+  |
+4 | struct F<Aa_> {ezy: Ibxc}
+  | ^
+error[T030]: type parameter 'Aa_' of struct F is never used by a field
+ --> FILE:4:1
+  |
+4 | struct F<Aa_> {ezy: Ibxc}
+  | ^
+error[T000]: types cannot be juxtaposed: 'Bz<...> I01' has no meaning
+ --> FILE:6:1
+  |
+6 | struct Hx {ex0: Bz<mut G1ab, G1cb + Ax> I01, b: A, daxz: G0 + D<B0y<G + Gyx, H_cz>, Aa2 F + Ex>}  // trailing
+  | ^
+error[T040]: unknown type 'A'
+ --> FILE:6:1
+  |
+6 | struct Hx {ex0: Bz<mut G1ab, G1cb + Ax> I01, b: A, daxz: G0 + D<B0y<G + Gyx, H_cz>, Aa2 F + Ex>}  // trailing
+  | ^
+error[T040]: unknown type 'G0'
+ --> FILE:6:1
+  |
+6 | struct Hx {ex0: Bz<mut G1ab, G1cb + Ax> I01, b: A, daxz: G0 + D<B0y<G + Gyx, H_cz>, Aa2 F + Ex>}  // trailing
+  | ^
+error[T040]: unknown type 'D'
+ --> FILE:6:1
+  |
+6 | struct Hx {ex0: Bz<mut G1ab, G1cb + Ax> I01, b: A, daxz: G0 + D<B0y<G + Gyx, H_cz>, Aa2 F + Ex>}  // trailing
+  | ^
+typecheck: 23 error(s)
+== facts
+error[T000]: assignment to undefined variable c12
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: the RHS of '/=' mints a token with '#', which can never match an existing value — pin it (#N) or bind the value to a name first
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable i
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable hz
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable gxza
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable bzax
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable ga
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable exxz
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable ac0c
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable i
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable h
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable db
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable eba
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable a2zy
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable a2y2
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable a2z1
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T000]: undefined variable a0z
+ --> FILE:1:1
+  |
+1 | c12 /= {{#, 2467, i} & hz & gxza <-[588.55]-> bzax / (ga & exxz) / {"9Z9", ac0c, -15_4},
+  | ^
+error[T040]: unknown type 'Ibxc'
+ --> FILE:4:1
+  |
+4 | struct F<Aa_> {ezy: Ibxc}
+  | ^
+error[T030]: type parameter 'Aa_' of struct F is never used by a field
+ --> FILE:4:1
+  |
+4 | struct F<Aa_> {ezy: Ibxc}
+  | ^
+error[T000]: types cannot be juxtaposed: 'Bz<...> I01' has no meaning
+ --> FILE:6:1
+  |
+6 | struct Hx {ex0: Bz<mut G1ab, G1cb + Ax> I01, b: A, daxz: G0 + D<B0y<G + Gyx, H_cz>, Aa2 F + Ex>}  // trailing
+  | ^
+error[T040]: unknown type 'A'
+ --> FILE:6:1
+  |
+6 | struct Hx {ex0: Bz<mut G1ab, G1cb + Ax> I01, b: A, daxz: G0 + D<B0y<G + Gyx, H_cz>, Aa2 F + Ex>}  // trailing
+  | ^
+error[T040]: unknown type 'G0'
+ --> FILE:6:1
+  |
+6 | struct Hx {ex0: Bz<mut G1ab, G1cb + Ax> I01, b: A, daxz: G0 + D<B0y<G + Gyx, H_cz>, Aa2 F + Ex>}  // trailing
+  | ^
+error[T040]: unknown type 'D'
+ --> FILE:6:1
+  |
+6 | struct Hx {ex0: Bz<mut G1ab, G1cb + Ax> I01, b: A, daxz: G0 + D<B0y<G + Gyx, H_cz>, Aa2 F + Ex>}  // trailing
+  | ^
+typecheck: 23 error(s)

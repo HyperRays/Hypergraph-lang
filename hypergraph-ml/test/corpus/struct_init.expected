@@ -1,0 +1,79 @@
+== report
+stmt 1: struct P<T, U> { a: T, b: U }
+stmt 2: p : struct P<Int, String>
+stmt 3: q : struct P<Int, Int>
+stmt 4: r : struct P<Int, Int>
+stmt 5: error: unknown type 'A'
+stmt 5: error: unknown type 'B'
+stmt 5: error: unknown type 'C'
+stmt 5: error: field a of P: found type Int, needed type Set<>
+stmt 5: error: field b of P: found type Int, needed type Set<>
+stmt 5: s : struct P<, >
+stmt 6: t : struct P<Int, Int>
+typecheck: 5 error(s)
+== incidence
+stmt 1: struct P<T, U> { a: T, b: U }
+stmt 2: p : struct P<Int, String>
+stmt 3: q : struct P<Int, Int>
+stmt 4: r : struct P<Int, Int>
+error[T040]: unknown type 'A'
+ --> FILE:5:1
+  |
+5 | let s = P<A + B, C>(1, 2)
+  | ^
+error[T040]: unknown type 'B'
+ --> FILE:5:1
+  |
+5 | let s = P<A + B, C>(1, 2)
+  | ^
+error[T040]: unknown type 'C'
+ --> FILE:5:1
+  |
+5 | let s = P<A + B, C>(1, 2)
+  | ^
+error[T000]: field a of P: found type Int, needed type Set<>
+ --> FILE:5:1
+  |
+5 | let s = P<A + B, C>(1, 2)
+  | ^
+error[T000]: field b of P: found type Int, needed type Set<>
+ --> FILE:5:1
+  |
+5 | let s = P<A + B, C>(1, 2)
+  | ^
+stmt 5: s : struct P<, >
+stmt 6: t : struct P<Int, Int>
+typecheck: 5 error(s)
+== facts
+stmt 1: struct P<T, U> { a: T, b: U }
+stmt 2: p : struct P<Int, String>
+stmt 3: q : struct P<Int, Int>
+stmt 4: r : struct P<Int, Int>
+error[T040]: unknown type 'A'
+ --> FILE:5:1
+  |
+5 | let s = P<A + B, C>(1, 2)
+  | ^
+error[T040]: unknown type 'B'
+ --> FILE:5:1
+  |
+5 | let s = P<A + B, C>(1, 2)
+  | ^
+error[T040]: unknown type 'C'
+ --> FILE:5:1
+  |
+5 | let s = P<A + B, C>(1, 2)
+  | ^
+error[T000]: field a of P: found type Int, needed type Set<>
+ --> FILE:5:1
+  |
+5 | let s = P<A + B, C>(1, 2)
+  | ^
+error[T000]: field b of P: found type Int, needed type Set<>
+ --> FILE:5:1
+  |
+5 | let s = P<A + B, C>(1, 2)
+  | ^
+stmt 5: s : struct P<, >
+stmt 6: t : struct P<Int, Int>
+typecheck: 5 error(s)

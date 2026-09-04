@@ -1,0 +1,59 @@
+== report
+stmt 1: struct City { name: String, pop: Int }
+stmt 2: g1 : Set<>
+stmt 3: m2 : mut Set<Edge> + Set<UndirectedEdge>
+stmt 4: m2 : mut Set<Edge> + Set<UndirectedEdge>
+stmt 5: m2 : mut Set<Edge> + Set<UndirectedEdge>
+typecheck: OK
+== incidence
+graph m2: 2 vertices x 2 columns (groups: #0[1], #1[1])
+            #0  #1
+       "b"  -1  +1
+  "日本橋"  +1  -1
+
+== facts
+// hypergraph facts — base relations (see hypergraph-ml/lib/facts.ml)
+.type id <: symbol
+.decl graph(g: id)                      // a drawn graph variable
+.decl graph_name(g: id, name: symbol)   // its source name, tag stripped
+.decl graph_tag(g: id, tag: symbol)     // --tag of the emitting program ("" if none)
+.decl vertex(g: id, v: id)              // v is a row of g
+.decl edge(g: id, e: id)                // e is a column of g
+.decl group(g: id, grp: symbol, e: id)  // atlas grouping, by group label
+.decl tail(e: id, v: id)                // incidence -1 (2 emits both)
+.decl head(e: id, v: id)                // incidence +1 (2 emits both)
+.decl payload(e: id, p: id)             // the edge's '-[p]->' annotation
+.decl show(x: id, text: symbol)         // display form — provenance, not a parsing surface
+.decl val_int(x: id, n: number)
+.decl val_str(x: id, s: symbol)
+.decl val_dec(x: id, d: float)
+.decl val_fronce(x: id, t: symbol)      // "%aN" minted / "%uN" pinned
+.decl val_set(x: id)
+.decl val_elem(x: id, m: id)            // set membership
+.decl val_graph(x: id, g: id)           // a named graph used as a value
+.decl val_edge(x: id, t: id, h: id)     // an edge used as a value (sides are sets)
+.decl val_uedge(x: id, a: id, b: id)
+.decl val_ann(x: id, p: id)             // payload of an edge-valued value
+.decl val_struct(x: id, name: symbol)   // fallback for structs without a usable .decl
+.decl val_arg(x: id, i: number, m: id)
+.decl City(x: id, name: symbol, pop: number)
+show("%v0", "\"b\"").
+val_str("%v0", "b").
+show("%v1", "\"日本橋\"").
+val_str("%v1", "日本橋").
+graph("m2").
+graph_name("m2", "m2").
+graph_tag("m2", "").
+show("m2", "m2").
+vertex("m2", "%v0").
+vertex("m2", "%v1").
+edge("m2", "%e0").
+group("m2", "#0", "%e0").
+show("%e0", "#0").
+tail("%e0", "%v0").
+head("%e0", "%v1").
+edge("m2", "%e1").
+group("m2", "#1", "%e1").
+show("%e1", "#1").
+tail("%e1", "%v1").
+head("%e1", "%v0").

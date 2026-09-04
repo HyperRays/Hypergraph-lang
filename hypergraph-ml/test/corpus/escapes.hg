@@ -1,0 +1,3 @@
+let s = "a\"b\\c\nd\te"
+let t = 'single "quoted"'
+let u = "Zürich 日本"
