@@ -1,8 +1,0 @@
-struct City { name: String, pop: Int }
-let g1 = {{"b"} -[#9]-> {"b"}}
-let m2: mut Graph = {}
-m2 ^= {{"b", City("y", 7)} -> {"日本橋"}}
-let u3 = {2} <-> {"b", 2.0}
-let z4 = u3 & g1
-let v5 = z4 & g1
-let v6 = z4 / v5

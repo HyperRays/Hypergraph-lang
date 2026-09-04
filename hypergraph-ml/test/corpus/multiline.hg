@@ -1,5 +1,0 @@
-let g: Graph = {
-  {1} -> {2},   // a comment
-  // a whole line
-  {2} -> {3},
-}

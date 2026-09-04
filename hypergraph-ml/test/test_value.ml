@@ -36,6 +36,7 @@ let copy = original
 let same_identity = {original, copy}
 let distinct = {{1} -> {2}}
 let distinct_identity = {original, distinct}
+let inline_surgery = ({5} -> {6}) | ({7} -> {8})
 |}
   in
   expect "coercion" "{{1} -> {2}, {2} -> {3}, {3} -> {2}}"
@@ -50,6 +51,8 @@ let distinct_identity = {original, distinct}
     (Value.to_string (value environment "same_identity"));
   expect "opaque distinct" "{{{1} -> {2}}, {{1} -> {2}}}"
     (Value.to_string (value environment "distinct_identity"));
+  expect "inline edge surgery" "{5, 7} -> {6, 8}"
+    (Value.to_string (value environment "inline_surgery"));
 
   let unequal_payloads =
     {|

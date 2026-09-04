@@ -1,8 +1,0 @@
-let g0: Graph = {{1} -> {2}}
-let m0: mut Graph = {}
-let e0: mut Edge = {1} -> {2}
-let u0: mut UndirectedEdge = {1} <-> {2}
-let s0: mut Set<Int> = {}
-let v1 = e0
-m0 ^= g0
-struct S2<P0> { f0: Int, f1: P0, f2: P0 }

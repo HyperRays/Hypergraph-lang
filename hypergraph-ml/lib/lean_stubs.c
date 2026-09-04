@@ -46,4 +46,3 @@ CAMLprim value caml_hypergraphml_bridge(value input) {
 
   CAMLreturn(output);
 }
-

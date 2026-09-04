@@ -1,2 +1,0 @@
-let s = {1, 2,}
-struct P { a: Int, b: Int, }

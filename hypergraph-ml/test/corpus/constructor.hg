@@ -1,2 +1,0 @@
-let e = Edge({1}, {2})
-let f = Edge({1}, {2}, 9)

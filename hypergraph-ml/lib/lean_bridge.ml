@@ -17,4 +17,3 @@ let invoke request =
           Error { message }
       | _ -> Ok json)
   | _ -> Error { message = "Lean bridge returned a non-object response" }
-

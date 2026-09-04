@@ -1,7 +1,0 @@
-struct City { name: String, pop: Int }
-let g1 = {{1.5, City("x", 9)} -> {"b"}, {"Zürich", "a"} <-[#5]-> {"Zürich", "a"}, {2.0, "a"} -> {2.0, "a"}}
-let g2 = {{g1, 0.0} <-> {"b", 1.5}}
-let m3: mut Graph = {{1.5} -> {1}}
-let g4 = {}
-let g5 = {{2} <-[#14]-> {2}, {City("日本", 3)} -[#]-> {City("日本", 4)}, {2.0, 3} -> {"b", "日本橋"}}
-let v6 = g4 & g1

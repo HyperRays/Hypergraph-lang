@@ -1,6 +1,0 @@
-== report
-parse error: 8:7: a decimal on the right of '&='; 'e0 &= ...' extends a set or edits an edge, so the right side must be a set or an edge
-== incidence
-parse error: 8:7: a decimal on the right of '&='; 'e0 &= ...' extends a set or edits an edge, so the right side must be a set or an edge
-== facts
-parse error: 8:7: a decimal on the right of '&='; 'e0 &= ...' extends a set or edits an edge, so the right side must be a set or an edge

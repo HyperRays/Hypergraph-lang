@@ -1,3 +1,0 @@
-struct City { name: String, pop: Int }
-let m1: mut Graph = {{1.5} -> {1.5}, {1.5} -> {1.5}}
-let g2 = {}

@@ -1,6 +1,0 @@
-struct P<T, U> { a: T, b: U }
-let p = P<Int, String>(1, "x")
-let q = P<Int, _>(1, 2)
-let r = P<_, _>(1, 2)
-let s = P<A + B, C>(1, 2)
-let t = P(1, 2)

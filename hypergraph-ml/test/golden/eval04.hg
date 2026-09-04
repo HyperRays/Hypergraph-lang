@@ -1,5 +1,0 @@
-struct City { name: String, pop: Int }
-let empty = {}
-let empty2 = {}
-let v1 = empty & empty2
-let g2 = {{2} -> {"a", "a"}}

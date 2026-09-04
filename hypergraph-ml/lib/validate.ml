@@ -26,8 +26,14 @@ let rec expression problems value =
     | Ast.SetOp (operator, operands) ->
         List.fold_left
           (fun problems operand ->
-            require_set problems
-              ("an operand of '" ^ Ast.op_symbol operator ^ "'") operand)
+            if Ast.operator_shaped operand then problems
+            else
+              { loc = operand.loc;
+                message =
+                  describe operand ^ " cannot be an operand of '"
+                  ^ Ast.op_symbol operator
+                  ^ "'; this operator requires a set or an edge" }
+              :: problems)
           problems operands
     | Ast.Edge (tail, head, _) ->
         require_set

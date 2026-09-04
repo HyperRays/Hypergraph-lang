@@ -56,6 +56,11 @@ let op_symbol = function
 let set_shaped expression =
   match expression.it with Set _ | Ref _ | SetOp _ -> true | _ -> false
 
+let operator_shaped expression =
+  match expression.it with
+  | Set _ | Ref _ | SetOp _ | Edge _ | UndirectedEdge _ -> true
+  | _ -> false
+
 exception Mixed_ops of setop * setop * loc
 
 let rec string_of_type ty =

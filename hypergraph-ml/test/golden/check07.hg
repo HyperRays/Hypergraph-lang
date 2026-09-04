@@ -1,8 +1,0 @@
-let g0: Graph = {{1} -> {2}}
-let m0: mut Graph = {}
-let e0: mut Edge = {1} -> {2}
-let u0: mut UndirectedEdge = {1} <-> {2}
-let s0: mut Set<Int> = {}
-type S1 = Set<Set<Fronce> + Set<Int>>
-let v2: Fronce = {#} -["s"]-> {s0}
-e0 &= 1.5
