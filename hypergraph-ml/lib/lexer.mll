@@ -81,6 +81,8 @@ rule token = parse
   | '-'                   { MINUS }
   | '{'                   { push '{' lexbuf; LBRACE }
   | '}'                   { pop '{' lexbuf; RBRACE }
+  | '['                   { push '[' lexbuf; LBRACKET }
+  | ']'                   { pop '[' lexbuf; RBRACKET }
   | '('                   { push '(' lexbuf; LPAREN }
   | ')'                   { pop '(' lexbuf; RPAREN }
   | '<'                   { push '<' lexbuf; LT }

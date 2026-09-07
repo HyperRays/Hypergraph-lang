@@ -1,4 +1,5 @@
-import ACUIHE.Solver.ESubstitution
+import ACUIHE.NormalForm.Canonical
+import ACUIHE.ACUIh
 import ACUIHE.Solver.Linear.Matrix
 import ACUIHE.Solver.Solution
 
@@ -21,8 +22,7 @@ local instance homContextAddIdempotent {Hom : Type*} [Encodable Hom] :
 /--
 The finite collection of homomorphism paths surrounding occurrences of one
 variable in a normal form. Complete `E` blocks are deliberately ignored:
-the matrix representation is used on the ACUIh form produced by
-`reverseSubstituteEBlocks`.
+the matrix representation is used on E-free ACUIh forms.
 -/
 def variableCoefficient
     {Const : Type u} {Var : Type v} {Hom : Type w}

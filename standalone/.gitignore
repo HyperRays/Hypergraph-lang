@@ -1,0 +1,5 @@
+/_stage/
+/dist/
+/lean/.lake/
+/lean/lake-manifest.json
+

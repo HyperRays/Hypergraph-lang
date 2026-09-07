@@ -51,7 +51,9 @@ let exact = Measure::Exact(1.10)
 let missing = Measure::Missing
 let nothing = None
 let connection = {record, missing, nothing} -[exact]-> {record}
-let graph = {connection}
+let history = [record, missing, record]
+let listed = {history} -> {record}
+let graph = {connection, listed}
 let copy = graph
 let outer = {graph} -> {copy}
 let atlas = {outer}
@@ -69,7 +71,9 @@ let empty_graph: Graph<Int,Int,Bottom> = {}
       ".decl Measure__Exact(x: id, arg0: symbol)";
       ".decl Measure__Missing(x: id)";
       ".decl Option__Some(x: id, arg0: id)";
-      ".decl Option__None(x: id)" ] ;
+      ".decl Option__None(x: id)";
+      ".decl val_list(x: id)";
+      ".decl val_item(x: id, position: number, value: id)" ] ;
   let emitted = facts ~tag:"document" result in
   List.iter
     (fun expected ->
@@ -82,6 +86,8 @@ let empty_graph: Graph<Int,Int,Bottom> = {}
       ", \"11/10\").";
       "Measure__Missing(";
       "Option__None(";
+      "val_list(";
+      "val_item(";
       "graph(\"document:graph\").";
       "graph(\"document:copy\").";
       "graph(\"document:atlas\").";

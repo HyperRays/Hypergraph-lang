@@ -31,6 +31,10 @@ become `Enum__Variant` relations. Integers are emitted as exact decimal
 symbols and decimals as exact numerator/denominator symbols, so exporting
 facts cannot narrow the language's arbitrary-precision values.
 
+Lists are emitted with `val_list` and ordered `val_item` relations. Every item
+relation includes its zero-based position, so order and duplicate occurrences
+are preserved in the exported facts.
+
 For example, append this query to the combined schema and facts for
 `example.hg`:
 

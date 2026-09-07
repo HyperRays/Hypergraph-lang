@@ -32,6 +32,7 @@ def edge : TypeConstant := 5
 def undirectedEdge : TypeConstant := 6
 def opaqueTag : TypeConstant := 7
 def opaqueEq : TypeConstant := 8
+def list : TypeConstant := 9
 end BuiltinConstant
 
 namespace BuiltinHom
@@ -43,6 +44,7 @@ def edgeHead : TypeHom := 4
 def edgePayload : TypeHom := 5
 def opaqueHide : TypeHom := 6
 def opaqueMarker : TypeHom := 7
+def listElement : TypeHom := 8
 end BuiltinHom
 
 abbrev TypeTerm (Variable : Type) := Term TypeConstant Variable TypeHom
@@ -65,12 +67,16 @@ private def sumTerms {Variable : Type} : List (TypeTerm Variable) → TypeTerm V
 def primitive {Variable : Type} (identity : TypeConstant) : TypeTerm Variable :=
   .const identity
 
-/-- The bottom type and the element type of the empty set literal. -/
+/-- The bottom type and the element type of empty set and list literals. -/
 def bottom {Variable : Type} : TypeTerm Variable := .zero
 
 /-- `Set<T> = S_setElement(C_Set, T)`. -/
 def set {Variable : Type} (element : TypeTerm Variable) : TypeTerm Variable :=
   .add (.const BuiltinConstant.set) (.hom BuiltinHom.setElement element)
+
+/-- `List<T> = S_listElement(C_List, T)`. -/
+def list {Variable : Type} (element : TypeTerm Variable) : TypeTerm Variable :=
+  .add (.const BuiltinConstant.list) (.hom BuiltinHom.listElement element)
 
 /--
 All structs and enums share this encoding.  Each member occurrence supplies

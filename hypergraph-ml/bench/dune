@@ -1,0 +1,4 @@
+(executable
+ (name type_inference_bench)
+ (modules Type_inference_bench)
+ (libraries hypergraph unix))

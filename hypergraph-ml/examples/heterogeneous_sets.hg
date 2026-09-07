@@ -1,0 +1,23 @@
+// A sum is constructible at a set boundary. Individual elements retain their
+// precise types; the set is what contains alternatives.
+
+alias Bag<T> = Set<T>
+
+struct Inventory<T> {
+  items: Bag<T>,
+}
+
+let integers = {1, 2, 3}
+let labels = {"one", "two"}
+let mixed = {1, "two", 3, "four"}
+let combined = integers | labels
+let inventory = Inventory(mixed)
+
+// The same rule applies recursively to alternatives which are themselves
+// complete value types.
+let integer_choice = Some(1)
+let string_choice = Some("one")
+let choices = {
+  integer_choice,
+  string_choice,
+}

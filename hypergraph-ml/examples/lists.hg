@@ -1,0 +1,15 @@
+struct Entry<Key,Value> {
+  key: Key,
+  value: Value,
+}
+
+let repeated = [1, 2, 1]
+let mixed = [1, "two", 3, "four"]
+let nested = [[1, 2], [], [3]]
+
+let first = Entry("first", 1)
+let second = Entry("second", 2)
+let entries = [first, second, first]
+
+// Lists can be payloads, but they do not replace the sets on edge sides.
+let sequenced = {first} -[entries]-> {second}

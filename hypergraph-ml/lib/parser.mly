@@ -26,7 +26,7 @@ let chain position first rest =
 %token <Q.t> DECIMAL
 %token <string> STRING IDENT
 %token LET STRUCT ENUM ALIAS MUT
-%token LBRACE RBRACE LPAREN RPAREN LT GT
+%token LBRACE RBRACE LBRACKET RBRACKET LPAREN RPAREN LT GT
 %token COMMA COLON DCOLON EQUALS PLUS UNDERSCORE
 %token BAR AMP MINUS BAR_EQ AMP_EQ MINUS_EQ
 %token ARROW_R ARROW_L ARROW_LR
@@ -138,6 +138,8 @@ value:
           (Variant (enum_name, variant_name, Option.value arguments ~default:[])) }
   | name = IDENT; type_arguments = option(type_arguments); arguments = call_arguments
       { located $startpos (Apply (name, type_arguments, arguments)) }
+  | LBRACKET; newlines; elements = elements; RBRACKET
+      { located $startpos (List elements) }
   | value = set_expression                             { value }
 
 type_arguments:

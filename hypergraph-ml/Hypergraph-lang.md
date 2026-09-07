@@ -63,6 +63,31 @@ struct Hi {
 
 let s: Set<Hi> = {Hi(Bye::Cya)}
 ```
+##### Lists
+
+Lists are ordered containers. They use square brackets, preserve the order in
+which their values are written, and retain duplicate values:
+
+```hg
+let values: List<Int> = [1, 2, 1]
+let empty: List<Int> = []
+```
+
+As with sets, lists may contain any language object and their element type may
+be a sum:
+
+```hg
+let mixed: List<Int + String> = [1, "one", 2, "two"]
+let nested: List<List<Int>> = [[1, 2], [3]]
+```
+
+When the runtime must compare lists as parts of other values, equality is
+structural: the length, order, and corresponding values must be equal. This
+does not introduce a list equality operator. Lists do not participate in the
+emergent `Graph` type, cannot replace the sets used as edge sides, and do not
+perform edge coercions. An `UndirectedEdge` placed in a list therefore remains
+one `UndirectedEdge` value.
+
 ##### Edges
 
  There are 2 types of edges; directed-edges and undirected-edges
@@ -171,6 +196,14 @@ edgeA |= edgeB
 // not allowed
 edgeB |= edgeC
 ```
+
+##### Operations on Lists
+
+Lists initially define no operations. The set and edge operators `|`, `&`, and
+`-`, together with their in-place forms, cannot be applied to lists. List
+literals may still be stored in bindings and used inside sets, structs, enums,
+edge payloads, and other lists.
+
 ### Type System
 
 ##### Type lattice 
@@ -206,10 +239,32 @@ let superg2 = superg | {gA}   // still {gA, gB} — gA deduplicates by marker
 
 The type `T` could also be some struct or even an edge, meaning that struct parameters and edge payloads get the same treatment (edge sides are sets). 
 
-Since sets can hold inhomogeneous types, they in fact also distribute over the sum:
+Since sets and lists can hold inhomogeneous values, their element types
+distribute over the sum:
 ```typesystem
 Set<A+B> = Set<A>+Set<B>
+List<A+B> = List<A>+List<B>
 ```
+
+A type sum type is not describing the possible types. A value of type `Int`
+does not also have type `Int + String`, so this is rejected:
+
+```hg
+let value: Int + String = 1
+```
+
+At a set or list element position, however, the corresponding sum type is
+constructible, so these are valid:
+
+```hg
+let mixed: Set<Int + String> = {1, "one"}
+let integers: Set<Int + String> = {1, 2}
+let sequence: List<Int + String> = [1, "one", 2]
+```
+
+An empty list has the inferred type `List<Bottom>`. As with other occurrences
+of `Bottom`, an annotation or another surrounding constraint may refine its
+element type.
 
 This gives the type checker a very easy way to represent some complex type in a canonical form: distribute all types into sums. This also allows for easy checking of `Eq` poisoning. The `Eq` type is derived and applied whenever an operation requires checking if two items have equality.
 

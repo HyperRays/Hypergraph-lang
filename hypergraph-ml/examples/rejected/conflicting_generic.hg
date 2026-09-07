@@ -1,0 +1,9 @@
+// Expected error: the shared T parameter cannot be both Int and String.
+// Unlike a set, a struct field is not a distributive sum boundary.
+
+struct HomogeneousPair<T> {
+  first: T,
+  second: T,
+}
+
+let conflict = HomogeneousPair(1, "one")

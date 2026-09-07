@@ -5,6 +5,7 @@ and node =
   | Decimal of Q.t
   | String of string
   | Set of element list
+  | List of t list
   | Edge of edge
   | UndirectedEdge of edge
   | Struct of string * t list
@@ -51,6 +52,8 @@ and equal_node left right =
       && List.for_all
            (fun left -> List.exists (fun right -> equal left.value right.value) right)
            left
+  | List left, List right ->
+      List.length left = List.length right && List.for_all2 equal left right
   | Edge left, Edge right | UndirectedEdge left, UndirectedEdge right ->
       equal_edge left right
   | Struct (left_name, left_values), Struct (right_name, right_values) ->
@@ -148,6 +151,7 @@ let rec to_string value =
   | Set elements ->
       "{" ^ String.concat ", " (List.map (fun element -> to_string element.value) elements)
       ^ "}"
+  | List values -> "[" ^ String.concat ", " (List.map to_string values) ^ "]"
   | Edge edge -> edge_string " -> " " -[" "]-> " edge
   | UndirectedEdge edge -> edge_string " <-> " " <-[" "]-> " edge
   | Struct (name, values) ->
@@ -217,6 +221,9 @@ and eval_raw checked environment expression =
           (Ok []) expressions
       in
       Ok (at ~marker:(location_marker "set" expression.loc) (Set elements))
+  | Ast.List expressions ->
+      let* values = eval_all checked environment expressions in
+      Ok (at ~marker:(location_marker "list" expression.loc) (List values))
   | Ast.SetOp (operator, operands) ->
       eval_operation checked environment expression.loc operator operands
   | Ast.Edge (left, right, payload) ->

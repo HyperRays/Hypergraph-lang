@@ -1,0 +1,4 @@
+(lang dune 3.17)
+(name hypergraph_ml_standalone)
+(using menhir 2.1)
+

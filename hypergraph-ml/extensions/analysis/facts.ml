@@ -20,7 +20,8 @@ let fail message = Error { message }
 let base_relation_names =
   [ "graph"; "graph_name"; "graph_tag"; "vertex"; "edge"; "group";
     "tail"; "head"; "payload"; "show"; "val_int"; "val_dec";
-    "val_str"; "val_set"; "val_elem"; "val_graph"; "val_edge";
+    "val_str"; "val_set"; "val_elem"; "val_list"; "val_item";
+    "val_graph"; "val_edge";
     "val_uedge"; "val_ann"; "val_struct"; "val_variant"; "val_arg" ]
 
 let base_schema =
@@ -41,6 +42,8 @@ let base_schema =
 .decl val_str(x: id, value: symbol)
 .decl val_set(x: id)
 .decl val_elem(x: id, member: id)
+.decl val_list(x: id)
+.decl val_item(x: id, position: number, value: id)
 .decl val_graph(x: id, g: id)
 .decl val_edge(x: id, tail_set: id, head_set: id)
 .decl val_uedge(x: id, left_set: id, right_set: id)
@@ -334,6 +337,16 @@ and emit_value emitter id value =
             line emitter.values "val_elem(%s, %s)." (quote id) (quote member);
             Ok ())
           (Ok ()) elements
+    | Value.List values ->
+        line emitter.values "val_list(%s)." (quote id);
+        List.fold_left
+          (fun result (position, value) ->
+            let* () = result in
+            let* item = value_id emitter value in
+            line emitter.values "val_item(%s, %d, %s)." (quote id) position
+              (quote item);
+            Ok ())
+          (Ok ()) (List.mapi (fun position value -> (position, value)) values)
     | Value.Edge edge | Value.UndirectedEdge edge ->
         let relation =
           match value.node with Value.Edge _ -> "val_edge" | _ -> "val_uedge"

@@ -8,8 +8,12 @@ import ACUIHE.NormalForm.API
 import ACUIHE.Solver.Correctness
 import ACUIHE.Solver.Descent
 import ACUIHE.Solver.Substitution
+import ACUIHE.ACUIh
+import ACUIHE.ACUIE
 import ACUIHE.Solver.ESubstitution
 import ACUIHE.Solver.Solution
 import ACUIHE.Solver.Linear
 import ACUIHE.Solver.Search
 import ACUIHE.External.Batch
+import ACUIHE.Graph
+import ACUIHE.Graph.Embedding

@@ -9,6 +9,7 @@ let describe expression =
   | Ast.Variant (name, variant, _) -> name ^ "::" ^ variant
   | Ast.Edge _ -> "an edge"
   | Ast.UndirectedEdge _ -> "an undirected edge"
+  | Ast.List _ -> "a list"
   | Ast.Set _ | Ast.Ref _ | Ast.SetOp _ -> "a set expression"
 
 let require_set problems context expression =
@@ -47,7 +48,7 @@ let rec expression problems value =
   in
   match value.Ast.it with
   | Ast.Int _ | Ast.Decimal _ | Ast.String _ | Ast.Ref _ -> problems
-  | Ast.Set values | Ast.SetOp (_, values) | Ast.Apply (_, _, values)
+  | Ast.Set values | Ast.List values | Ast.SetOp (_, values) | Ast.Apply (_, _, values)
   | Ast.Variant (_, _, values) -> List.fold_left expression problems values
   | Ast.Edge (left, right, payload) | Ast.UndirectedEdge (left, right, payload) ->
       List.fold_left expression problems

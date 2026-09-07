@@ -66,7 +66,7 @@ type state = {
 }
 
 let builtins =
-  [ "Int"; "Decimal"; "String"; "Bottom"; "Set"; "Option"; "Edge";
+  [ "Int"; "Decimal"; "String"; "Bottom"; "Set"; "List"; "Option"; "Edge";
     "UndirectedEdge"; "Graph"; "Opaque"; "Eq"; "mut" ]
 
 let empty_state () =
@@ -166,6 +166,7 @@ and resolve_named state ~substitution ~seen parameters loc name arguments =
   | "String" -> arity 0 (fun _ -> Types.String)
   | "Bottom" -> arity 0 (fun _ -> Types.Bottom)
   | "Set" -> arity 1 (function [ element ] -> Types.Set element | _ -> assert false)
+  | "List" -> arity 1 (function [ element ] -> Types.List element | _ -> assert false)
   | "Option" -> arity 1 (function [ payload ] -> Types.Option payload | _ -> assert false)
   | "Edge" ->
       arity 3 (function
@@ -250,21 +251,97 @@ let add_coercion state loc actual expected =
     { lower = Types.to_solver actual; upper = Types.to_solver expected; loc }
     :: state.coercions
 
-let rec constrain_types state loc actual expected reason =
+(* A sum describes the alternatives contributed by a distributive container;
+   it is not a union type for an individual value.  Keep this relation
+   separate from [Types.below], which is the underlying ACUIhE order and does
+   make every summand lie below its sum. *)
+let combine_constructibility relations =
+  if List.exists (( = ) Types.No) relations then Types.No
+  else if List.exists (( = ) Types.Deferred) relations then Types.Deferred
+  else Types.Yes
+
+let choose_constructibility relations =
+  if List.exists (( = ) Types.Yes) relations then Types.Yes
+  else if List.exists (( = ) Types.Deferred) relations then Types.Deferred
+  else Types.No
+
+let rec constructible_below ~sum_position actual expected =
+  if Types.equal actual expected || actual = Types.Error || expected = Types.Error
+  then Types.Yes
+  else
+    match (actual, expected) with
+    | Types.Variable _, _ | _, Types.Variable _ -> Types.Deferred
+    | Types.Bottom, _ -> Types.Yes
+    | _, Types.Sum choices when sum_position ->
+        Types.summands actual
+        |> List.map (fun value ->
+             choices
+             |> List.map (constructible_below ~sum_position:false value)
+             |> choose_constructibility)
+        |> combine_constructibility
+    | Types.Sum values, _ when sum_position ->
+        values
+        |> List.map (fun value ->
+             constructible_below ~sum_position:false value expected)
+        |> combine_constructibility
+    | _, Types.Sum _ | Types.Sum _, _ -> Types.No
+    | Types.Set actual, Types.Set expected ->
+        constructible_below ~sum_position:true actual expected
+    | Types.List actual, Types.List expected ->
+        constructible_below ~sum_position:true actual expected
+    | Types.Option actual, Types.Option expected ->
+        constructible_below ~sum_position:false actual expected
+    | Types.Edge (actual_kind, actual_tail, actual_head, actual_payload),
+      Types.Edge (expected_kind, expected_tail, expected_head, expected_payload)
+      when actual_kind = expected_kind ->
+        combine_constructibility
+          [ constructible_below ~sum_position:true actual_tail expected_tail;
+            constructible_below ~sum_position:true actual_head expected_head;
+            constructible_below ~sum_position:false actual_payload expected_payload ]
+    | Types.Named (actual_name, actual_members),
+      Types.Named (expected_name, expected_members)
+      when actual_name = expected_name
+           && List.length actual_members = List.length expected_members
+           && List.for_all2
+                (fun (actual_label, _) (expected_label, _) ->
+                  actual_label = expected_label)
+                actual_members expected_members ->
+        List.map2
+          (fun (_, actual) (_, expected) ->
+            constructible_below ~sum_position:false actual expected)
+          actual_members expected_members
+        |> combine_constructibility
+    | Types.Opaque (actual_hidden, actual_marker),
+      Types.Opaque (expected_hidden, expected_marker) ->
+        combine_constructibility
+          [ constructible_below ~sum_position:false actual_hidden expected_hidden;
+            constructible_below ~sum_position:false actual_marker expected_marker ]
+    | _ -> Types.No
+
+let rec constrain_types ?(sum_position = false) state loc actual expected reason =
   if actual = Types.Error || expected = Types.Error || Types.equal actual expected then ()
   else
     match (actual, expected) with
     | Types.Bottom, Types.Variable _ -> ()
     | Types.Variable _, _ | _, Types.Variable _ ->
         equal_constraint state loc reason actual expected
-    | Types.Set actual, Types.Set expected
+    | Types.Sum values, _
+      when sum_position
+           && (match expected with Types.Sum _ -> false | _ -> true) ->
+        List.iter
+          (fun actual -> constrain_types state loc actual expected reason)
+          values
+    | Types.Set actual, Types.Set expected ->
+        constrain_types ~sum_position:true state loc actual expected reason
+    | Types.List actual, Types.List expected ->
+        constrain_types ~sum_position:true state loc actual expected reason
     | Types.Option actual, Types.Option expected ->
         constrain_types state loc actual expected reason
     | Types.Edge (actual_kind, actual_tail, actual_head, actual_payload),
       Types.Edge (expected_kind, expected_tail, expected_head, expected_payload)
       when actual_kind = expected_kind ->
-        constrain_types state loc actual_tail expected_tail reason;
-        constrain_types state loc actual_head expected_head reason;
+        constrain_types ~sum_position:true state loc actual_tail expected_tail reason;
+        constrain_types ~sum_position:true state loc actual_head expected_head reason;
         constrain_types state loc actual_payload expected_payload reason
     | Types.Named (actual_name, actual_members),
       Types.Named (expected_name, expected_members)
@@ -283,7 +360,7 @@ let rec constrain_types state loc actual expected reason =
         constrain_types state loc actual_hidden expected_hidden reason;
         constrain_types state loc actual_marker expected_marker reason
     | _ -> (
-        match Types.below actual expected with
+        match constructible_below ~sum_position actual expected with
         | Types.No ->
             diagnose state loc
               (Printf.sprintf "%s: found %s, expected %s" reason
@@ -293,7 +370,7 @@ let rec constrain_types state loc actual expected reason =
             add_row state loc reason
               (Solver.Below (Types.to_solver actual, Types.to_solver expected)))
 
-let rec constrain state expression actual expected reason =
+let rec constrain ?(sum_position = false) state expression actual expected reason =
   match (actual, expected, expression.Ast.it) with
   | Types.Set _, Types.Set expected_element, Ast.Set elements ->
       List.iter
@@ -305,7 +382,15 @@ let rec constrain state expression actual expected reason =
               Types.Edge (Types.Directed, _, _, _) -> Types.Set expected_element
             | _ -> expected_element
           in
-          constrain state element actual_element expected_element reason)
+          constrain ~sum_position:true state element actual_element expected_element
+            reason)
+        elements
+  | Types.List _, Types.List expected_element, Ast.List elements ->
+      List.iter
+        (fun element ->
+          let actual_element = expression_type state element in
+          constrain ~sum_position:true state element actual_element expected_element
+            reason)
         elements
   | Types.Edge (Types.Undirected, left_tail, left_head, left_payload),
     Types.Set
@@ -313,7 +398,8 @@ let rec constrain state expression actual expected reason =
       compatible_edge_parameters state expression.loc left_tail left_head left_payload
         right_tail right_head right_payload;
       add_coercion state expression.loc actual expected
-  | _ -> constrain_types state expression.loc actual expected reason
+  | _ ->
+      constrain_types ~sum_position state expression.loc actual expected reason
 
 let instantiate state loc parameters explicit =
   match explicit with
@@ -351,6 +437,13 @@ let rec infer state expression =
     | Ast.Ref name -> infer_reference state expression name
     | Ast.Set elements ->
         Types.Set
+          (Types.sum
+             (List.map
+                (fun element ->
+                  infer state element |> protect_for_equality state element)
+                elements))
+    | Ast.List elements ->
+        Types.List
           (Types.sum
              (List.map
                 (fun element ->

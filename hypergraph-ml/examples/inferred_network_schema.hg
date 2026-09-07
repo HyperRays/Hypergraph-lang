@@ -1,0 +1,30 @@
+// A reusable graph schema whose parameters are inferred from generic nodes,
+// directed and undirected edges, a graph alias, and their containing struct.
+
+struct Endpoint<Identity,Label> {
+  identity: Identity,
+  label: Label,
+}
+
+alias Topology<Node,Payload> = Graph<Node,Node,Payload>
+
+struct Network<Node,Payload> {
+  nodes: Set<Node>,
+  primary: Edge<Node,Node,Payload>,
+  backup: UndirectedEdge<Node,Node,Payload>,
+  links: Topology<Node,Payload>,
+}
+
+let api = Endpoint(1, "api")
+let database = Endpoint(2, "database")
+let replica = Endpoint(3, "replica")
+
+let query = {api} -[12.5]-> {database}
+let replication = {database} <-[8.25]-> {replica}
+
+let endpoints = {api, database, replica}
+let topology = {query, replication}
+
+// Network ties together every occurrence of Node and Payload. Inference finds
+// Node = Endpoint<Int,String> and Payload = Decimal without annotations.
+let production = Network(endpoints, query, replication, topology)

@@ -132,6 +132,9 @@ let missing = Deferred::Missing
 let none = None
 let numbers = {number, 2, 3}
 let all_numbers = numbers | {4}
+let repeated = [number, number, 2]
+let mixed_list = [number, label]
+let empty_list = []
 let edge = {number} -> {2}
 let payload_edge = {2} -[pair]-> {3}
 let maybe_pair = Some(pair)
@@ -170,11 +173,59 @@ let maybe_pair = Some(pair)
       ("none", Types.Option Types.Bottom);
       ("numbers", Types.Set Types.Int);
       ("all_numbers", Types.Set Types.Int);
+      ("repeated", Types.List Types.Int);
+      ("mixed_list", Types.List (Types.sum [ Types.Int; Types.String ]));
+      ("empty_list", Types.List Types.Bottom);
       ("edge", Types.Edge (Types.Directed, Types.Int, Types.Int, Types.Bottom));
       ("payload_edge", Types.Edge (Types.Directed, Types.Int, Types.Int, pair));
       ("maybe_pair", Types.Option pair) ]
 
+let expect_cross_binding_generic_refinement () =
+  let source =
+    {|
+enum Outcome<Value,Problem> {
+  Success(Value),
+  Failure(Problem),
+}
+struct Report<Value,Problem> {
+  success: Outcome<Value,Problem>,
+  failure: Outcome<Value,Problem>,
+}
+struct Timeline<Value,Problem> {
+  entries: List<Outcome<Value,Problem>>,
+}
+let success = Outcome::Success(42)
+let failure = Outcome::Failure("not found")
+let report = Report(success, failure)
+let outcomes = [success, failure]
+let timeline = Timeline(outcomes)
+|}
+  in
+  let program = parse source in
+  List.iter
+    (fun statement ->
+      match statement.Ast.it with
+      | Ast.Let (name, Some _, _) ->
+          failwith ("test input unexpectedly annotates binding '" ^ name ^ "'")
+      | _ -> ())
+    program;
+  let checked = check source in
+  let outcome =
+    Types.Named
+      ( "Outcome",
+        [ ("Success:0", Types.Int); ("Failure:0", Types.String) ] )
+  in
+  let report =
+    Types.Named
+      ("Report", [ ("success", outcome); ("failure", outcome) ])
+  in
+  let timeline = Types.Named ("Timeline", [ ("entries", Types.List outcome) ]) in
+  expect_types checked
+    [ ("success", outcome); ("failure", outcome); ("report", report);
+      ("outcomes", Types.List outcome); ("timeline", timeline) ]
+
 let () =
   expect_annotation_free_document ();
+  expect_cross_binding_generic_refinement ();
   expect_whole_file_refinement ();
   expect_whole_file_contradiction ()

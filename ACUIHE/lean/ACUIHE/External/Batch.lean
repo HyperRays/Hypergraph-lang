@@ -115,11 +115,14 @@ theorem checkInequalitySystem_eq_true_iff
 /-!
 ## Checked definitional fast path
 
-Type inference commonly produces acyclic equations whose one side is a bare
+Type inference commonly produces acyclic constraints whose one side is a bare
 variable. Running the general `E`-configuration search on those definitions is
-unnecessarily expensive. The candidate below propagates such definitions only
-when the reverse row is also present, starts every variable at bottom, and is
+unnecessarily expensive. The candidate below propagates every such row, tracks
+uninferred variables separately from the legitimate bottom value, and is
 accepted only after the ordinary executable system checker validates it.
+Consequently this path is merely a candidate generator: accepting rows that
+are inequalities rather than equations cannot affect soundness, and an
+unsuccessful candidate still reaches the complete search.
 -/
 
 /-- Recognize a normal form consisting of exactly one unprefixed variable. -/
@@ -130,43 +133,92 @@ private def directVariable?
   (FinEnum.toList Var).find? fun name =>
     decide (term = variableForm name)
 
-/-- Whether the rewritten system contains the converse of this row. -/
-private def hasReverseRow
-    {Row Const Var Hom : Type u}
-    [FinEnum Row] [Encodable Const] [Encodable Var] [Encodable Hom]
-    (rules : List (BlockReplacement Const Hom))
-    (system : Row → TypeInequality Const Var Hom)
-    (target : TypeInequality Const Var Hom) : Bool :=
-  (FinEnum.toList Row).any fun row =>
-    let candidate := (system row).rewrite rules
-    decide (candidate.left = target.right ∧ candidate.right = target.left)
+/-- A row which can directly refine at least one variable. -/
+private abbrev DirectEquation
+    (Const Var Hom : Type u)
+    [Encodable Const] [Encodable Var] [Encodable Hom] :=
+  (Var × Var) ⊕ (Var × NormalForm Const Var Hom)
 
-/-- One propagation pass through reciprocal variable-definition rows. -/
-private def directCandidatePass
+/--
+Extract direct equations once. Rewriting rows and locating bare variables are
+deliberately kept out of the propagation loop. The former converse-row scan is
+unnecessary because the candidate is checked, and removing it also avoids a
+quadratic pre-pass over the system.
+-/
+private def directEquations
     {Row Const Var Hom : Type u}
     [FinEnum Row] [FinEnum Var]
     [Encodable Const] [Encodable Var] [Encodable Hom]
     (rules : List (BlockReplacement Const Hom))
-    (system : Row → TypeInequality Const Var Hom)
-    (assignment : Var → GroundNormalForm Const Hom) :
-    Var → GroundNormalForm Const Hom :=
-  (FinEnum.toList Row).foldl
-    (fun current row =>
-      let equation := (system row).rewrite rules
-      if hasReverseRow rules system equation then
-        match directVariable? equation.left with
-        | some name =>
-            Function.update current name
-              (ACUIHE.Solver.Search.applyGroundAssignment current equation.right)
-        | none =>
-            match directVariable? equation.right with
-            | some name =>
-                Function.update current name
-                  (ACUIHE.Solver.Search.applyGroundAssignment current equation.left)
-            | none => current
-      else
-        current)
-    assignment
+    (system : Row → TypeInequality Const Var Hom) :
+    List (DirectEquation Const Var Hom) :=
+  (FinEnum.toList Row).filterMap fun row =>
+    let equation := (system row).rewrite rules
+    match directVariable? equation.left, directVariable? equation.right with
+    | some leftName, some rightName => some (.inl (leftName, rightName))
+    | some name, none => some (.inr (name, equation.right))
+    | none, some name => some (.inr (name, equation.left))
+    | none, none => none
+
+/-- Whether every variable needed by a direct value has been inferred. -/
+private def directValueReady
+    {Const Var Hom : Type u}
+    [Encodable Const] [Encodable Var] [Encodable Hom]
+    (known : Var → Bool)
+    (value : NormalForm Const Var Hom) : Bool :=
+  value.fold true (fun left right => left && right)
+    (fun _ _ => true)
+    (fun _ name => known name)
+    (fun _ bodyReady => bodyReady)
+
+/-- Candidate values paired with whether the value is inferred yet. -/
+private abbrev DirectCandidateState
+    (Const Var Hom : Type u)
+    [Encodable Const] [Encodable Hom] :=
+  (Var → GroundNormalForm Const Hom) × (Var → Bool)
+
+/-- One monotone propagation pass through the preclassified direct rows. -/
+private def directCandidatePass
+    {Const Var Hom : Type u}
+    [FinEnum Var]
+    [Encodable Const] [Encodable Var] [Encodable Hom]
+    (equations : List (DirectEquation Const Var Hom))
+    (state : DirectCandidateState Const Var Hom) :
+    DirectCandidateState Const Var Hom :=
+  equations.foldl
+    (fun current equation =>
+      match equation with
+      | .inl (leftName, rightName) =>
+          -- Keep unknown distinct from the legitimate bottom value.  Once
+          -- either endpoint is known, an alias propagates monotonically in
+          -- both directions.
+          match current.2 leftName, current.2 rightName with
+          | false, false => current
+          | true, false =>
+              (Function.update current.1 rightName (current.1 leftName),
+                Function.update current.2 rightName true)
+          | false, true =>
+              (Function.update current.1 leftName (current.1 rightName),
+                Function.update current.2 leftName true)
+          | true, true =>
+              let joined := current.1 leftName ∪ current.1 rightName
+              (Function.update
+                  (Function.update current.1 leftName joined) rightName joined,
+                current.2)
+      | .inr (name, value) =>
+          -- Substituting unknown variables as bottom can create a partial
+          -- recursive `E` value which is extremely costly to rebuild later.
+          -- Delay the definition until every dependency has been inferred.
+          if directValueReady current.2 value then
+            let evaluated :=
+              ACUIHE.Solver.Search.applyGroundAssignment current.1 value
+            let joined :=
+              if current.2 name then current.1 name ∪ evaluated else evaluated
+            (Function.update current.1 name joined,
+              Function.update current.2 name true)
+          else
+            current)
+    state
 
 /-- Bottom-seeded bounded propagation candidate for definitional equations. -/
 private def directCandidate
@@ -176,9 +228,10 @@ private def directCandidate
     (rules : List (BlockReplacement Const Hom))
     (system : Row → TypeInequality Const Var Hom) :
     Var → GroundNormalForm Const Hom :=
-  (List.range ((FinEnum.toList Var).length + 1)).foldl
-    (fun assignment _ => directCandidatePass rules system assignment)
-    (fun _ => ∅)
+  let equations := directEquations rules system
+  ((List.range ((FinEnum.toList Var).length + 1)).foldl
+    (fun state _ => directCandidatePass equations state)
+    ((fun _ => ∅), (fun _ => false))).1
 
 /--
 Union of all rewritten terms in the system. This is not a conjunction

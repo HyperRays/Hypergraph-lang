@@ -37,6 +37,10 @@ let same_identity = {original, copy}
 let distinct = {{1} -> {2}}
 let distinct_identity = {original, distinct}
 let inline_surgery = ({5} -> {6}) | ({7} -> {8})
+let ordered = [1, 2, 1]
+let nested_lists = [[1, 1], [], [2]]
+let list_set = {[1, 2], [1, 2], [2, 1]}
+let list_payload = {1} -[[1, 2, 1]]-> {2}
 |}
   in
   expect "coercion" "{{1} -> {2}, {2} -> {3}, {3} -> {2}}"
@@ -53,6 +57,14 @@ let inline_surgery = ({5} -> {6}) | ({7} -> {8})
     (Value.to_string (value environment "distinct_identity"));
   expect "inline edge surgery" "{5, 7} -> {6, 8}"
     (Value.to_string (value environment "inline_surgery"));
+  expect "ordered duplicate-preserving list" "[1, 2, 1]"
+    (Value.to_string (value environment "ordered"));
+  expect "nested lists" "[[1, 1], [], [2]]"
+    (Value.to_string (value environment "nested_lists"));
+  expect "structural list equality in a set" "{[1, 2], [2, 1]}"
+    (Value.to_string (value environment "list_set"));
+  expect "list edge payload" "{1} -[[1, 2, 1]]-> {2}"
+    (Value.to_string (value environment "list_payload"));
 
   let unequal_payloads =
     {|

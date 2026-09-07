@@ -534,51 +534,6 @@ theorem replaceBasisConstants_congr_acuih
       simpa using membership
   | free body inductionHypothesis => exact False.elim acuih
 
-/-- Replacing basis constants by arbitrary ground terms preserves every
-ACUIhE derivation. -/
-theorem replaceBasisConstants_respectsDerives
-    {Basis : Type u} {Const : Type v} {Hom : Type w}
-    (replacement : Basis → Term Const (Fin 0) Hom)
-    {left right : Term Basis (Fin 0) Hom}
-    (derivation : Derives left right) :
-    Derives (replaceBasisConstants replacement left)
-      (replaceBasisConstants replacement right) := by
-  induction derivation with
-  | refl term => exact Derives.refl _
-  | symm derivation inductionHypothesis =>
-      exact Derives.symm inductionHypothesis
-  | trans leftDerivation rightDerivation leftHypothesis rightHypothesis =>
-      exact Derives.trans leftHypothesis rightHypothesis
-  | add_congr leftDerivation rightDerivation leftHypothesis rightHypothesis =>
-      exact Derives.add_congr leftHypothesis rightHypothesis
-  | hom_congr name derivation inductionHypothesis =>
-      exact Derives.hom_congr name inductionHypothesis
-  | free_congr derivation inductionHypothesis =>
-      exact Derives.free_congr inductionHypothesis
-  | free_inj derivation inductionHypothesis =>
-      exact Derives.free_inj inductionHypothesis
-  | add_assoc first middle last => exact Derives.add_assoc _ _ _
-  | add_comm first second => exact Derives.add_comm _ _
-  | add_zero term => exact Derives.add_zero _
-  | add_idem term => exact Derives.add_idem _
-  | hom_add name first second => exact Derives.hom_add name _ _
-  | hom_zero name => exact Derives.hom_zero name
-  | free_zero => exact Derives.free_zero
-
-/-- Replacing constants before or after canonical ACUIhE normalization gives
-the same target normal form. -/
-theorem normalize_replaceBasisConstants_reify_normalize
-    {Basis : Type u} {Const : Type v} {Hom : Type w}
-    [Encodable Basis] [Encodable Const] [Encodable Hom]
-    (replacement : Basis → Term Const (Fin 0) Hom)
-    (term : Term Basis (Fin 0) Hom) :
-    normalize (replaceBasisConstants replacement term) =
-      normalize
-        (replaceBasisConstants replacement (reify (normalize term))) := by
-  apply normalize_eq_of_derives
-  exact replaceBasisConstants_respectsDerives replacement
-    (derives_reify_normalize term)
-
 /-- For a valid solved certificate, the local rank-bounded replacement used
 by `resolveERepresentative` agrees with the global replacement on the whole
 solved representative body. -/
@@ -673,148 +628,6 @@ theorem resolveERepresentative_normalize
   rw [replacementsAgree]
 
 /-! ## Address-free reconstruction -/
-
-/-- Evaluate a ground normal form after interpreting each of its constants by
-an arbitrary ground term. -/
-def expandNormalForm
-    {Basis Const Hom : Type u}
-    [Encodable Basis] [Encodable Const] [Encodable Hom]
-    (replacement : Basis → Term Const (Fin 0) Hom)
-    (target : NormalForm Basis (Fin 0) Hom) :
-    NormalForm Const (Fin 0) Hom :=
-  target.fold ∅ (· ∪ ·)
-    (fun path basis => prefixHomPath path (normalize (replacement basis)))
-    (fun _ impossible => impossible.elim0)
-    (fun path body => prefixHomPath path (wrapE body))
-
-theorem expandNormalForm_union
-    {Basis Const Hom : Type u}
-    [Encodable Basis] [Encodable Const] [Encodable Hom]
-    (replacement : Basis → Term Const (Fin 0) Hom)
-    (first second : NormalForm Basis (Fin 0) Hom) :
-    expandNormalForm replacement (first ∪ second) =
-      expandNormalForm replacement first ∪
-        expandNormalForm replacement second := by
-  unfold expandNormalForm
-  apply NormalForm.fold_union
-  exact normalUnionEmpty
-
-theorem expandNormalForm_prefixHom
-    {Basis Const Hom : Type u}
-    [Encodable Basis] [Encodable Const] [Encodable Hom]
-    (replacement : Basis → Term Const (Fin 0) Hom)
-    (name : Hom) (target : NormalForm Basis (Fin 0) Hom) :
-    expandNormalForm replacement (prefixHom name target) =
-      prefixHom name (expandNormalForm replacement target) := by
-  unfold expandNormalForm
-  apply NormalForm.fold_prefixHom
-      (zeroRight := normalUnionEmpty)
-      (mapResult := prefixHom name)
-  · exact prefixHom_empty name
-  · exact prefixHom_union name
-  · intro path basis
-    rfl
-  · intro path impossible
-    exact impossible.elim0
-  · intro path body
-    rfl
-
-theorem expandNormalForm_prefixHomPath
-    {Basis Const Hom : Type u}
-    [Encodable Basis] [Encodable Const] [Encodable Hom]
-    (replacement : Basis → Term Const (Fin 0) Hom)
-    (path : List Hom) (target : NormalForm Basis (Fin 0) Hom) :
-    expandNormalForm replacement (prefixHomPath path target) =
-      prefixHomPath path (expandNormalForm replacement target) := by
-  induction path with
-  | nil => rfl
-  | cons name path inductionHypothesis =>
-      change expandNormalForm replacement
-          (prefixHom name (prefixHomPath path target)) = _
-      rw [expandNormalForm_prefixHom, inductionHypothesis]
-      rfl
-
-@[simp]
-theorem expandNormalForm_empty
-    {Basis Const Hom : Type u}
-    [Encodable Basis] [Encodable Const] [Encodable Hom]
-    (replacement : Basis → Term Const (Fin 0) Hom) :
-    expandNormalForm replacement (∅ : NormalForm Basis (Fin 0) Hom) = ∅ := by
-  simp [expandNormalForm]
-
-@[simp]
-theorem expandNormalForm_singleton_constant
-    {Basis Const Hom : Type u}
-    [Encodable Basis] [Encodable Const] [Encodable Hom]
-    (replacement : Basis → Term Const (Fin 0) Hom)
-    (path : List Hom) (basis : Basis) :
-    expandNormalForm replacement
-        ({(path, .constant basis)} : NormalForm Basis (Fin 0) Hom) =
-      prefixHomPath path (normalize (replacement basis)) := by
-  unfold expandNormalForm
-  rw [NormalForm.fold_singleton]
-  exact normalUnionEmpty _
-
-theorem normalize_replaceBasisConstants_reifyPath
-    {Basis Const Hom : Type u}
-    [Encodable Basis] [Encodable Const] [Encodable Hom]
-    (replacement : Basis → Term Const (Fin 0) Hom)
-    (path : List Hom) (term : Term Basis (Fin 0) Hom) :
-    normalize (replaceBasisConstants replacement (reifyPath path term)) =
-      prefixHomPath path
-        (normalize (replaceBasisConstants replacement term)) := by
-  induction path with
-  | nil => rfl
-  | cons name path inductionHypothesis =>
-      simp only [reifyPath, List.foldr_cons, replaceBasisConstants,
-        normalize_hom, prefixHomPath]
-      exact congrArg (prefixHom name) inductionHypothesis
-
-/-- The fold evaluator is exactly normalized term-level replacement. -/
-theorem expandNormalForm_eq_normalize_replaceBasisConstants
-    {Basis Const Hom : Type u}
-    [Encodable Basis] [Encodable Const] [Encodable Hom]
-    (replacement : Basis → Term Const (Fin 0) Hom)
-    (target : NormalForm Basis (Fin 0) Hom) :
-    expandNormalForm replacement target =
-      normalize (replaceBasisConstants replacement (reify target)) := by
-  unfold expandNormalForm reify
-  symm
-  apply NormalForm.fold_hom
-    (fun term : Term Basis (Fin 0) Hom =>
-      normalize (replaceBasisConstants replacement term))
-    (.zero : Term Basis (Fin 0) Hom) (.add)
-    (fun path basis => reifyPath path (.const basis))
-    (fun path impossible => reifyPath path (.var impossible))
-    (fun path body => reifyPath path (.free body))
-    (∅ : NormalForm Const (Fin 0) Hom) (· ∪ ·)
-    (fun path basis => prefixHomPath path (normalize (replacement basis)))
-    (fun _ impossible => impossible.elim0)
-    (fun path body => prefixHomPath path (wrapE body))
-    (by rfl)
-    (by intro first second; simp [replaceBasisConstants])
-    (by
-      intro path basis
-      rw [normalize_replaceBasisConstants_reifyPath]
-      rfl)
-    (by intro path impossible; exact impossible.elim0)
-    (by
-      intro path body
-      rw [normalize_replaceBasisConstants_reifyPath]
-      rfl)
-    target
-
-theorem expandNormalForm_canonicalize
-    {Basis Const Hom : Type u}
-    [Encodable Basis] [Encodable Const] [Encodable Hom]
-    (replacement : Basis → Term Const (Fin 0) Hom)
-    (target : NormalForm Basis (Fin 0) Hom) :
-    expandNormalForm replacement (canonicalize target) =
-      expandNormalForm replacement target := by
-  rw [expandNormalForm_eq_normalize_replaceBasisConstants,
-    expandNormalForm_eq_normalize_replaceBasisConstants]
-  exact (normalize_replaceBasisConstants_reify_normalize
-    replacement (reify target)).symm
 
 private def expandedAbstractValue
     {Const Var Hom : Type u}
@@ -1033,9 +846,7 @@ private theorem purificationPair_first
       ({(path, .variable name)}, {(path, .variable name)}))
     (fun path body =>
       let purified : NormalForm (ECombinationBasis left right) Var Hom :=
-        match classOfBody? left right configuration body.1 with
-        | none => ∅
-        | some representative => {(path, .constant (.inr representative))}
+        alienConstantAtPath path (classOfBody? left right configuration body.1)
       ({(path, .eOperator body.1)}, purified))
     (∅ : NormalForm Const Var Hom) (· ∪ ·)
     (fun path name => {(path, .constant name)})
@@ -1056,10 +867,7 @@ private theorem purificationPair_singleton_eOperator
     purificationPair left right configuration
         ({(path, .eOperator body)} : NormalForm Const Var Hom) =
       ({(path, .eOperator body)},
-        match classOfBody? left right configuration body with
-        | none => ∅
-        | some representative =>
-            {(path, .constant (.inr representative))}) := by
+        alienConstantAtPath path (classOfBody? left right configuration body)) := by
   unfold purificationPair
   rw [NormalForm.fold_singleton]
   change
@@ -1172,9 +980,7 @@ private def reconstructionProofEOperator
       left right configuration values) :
     ReconstructionProofScan Const Var Hom left right configuration values :=
   let purified : NormalForm (ECombinationBasis left right) Var Hom :=
-    match classOfBody? left right configuration body.source with
-    | none => ∅
-    | some representative => {(path, .constant (.inr representative))}
+    alienConstantAtPath path (classOfBody? left right configuration body.source)
   ⟨{(path, .eOperator body.source)},
     insert body.source body.bodies,
     purified,

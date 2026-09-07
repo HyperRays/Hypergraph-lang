@@ -1,3 +1,4 @@
+import ACUIHE.Solver.ESubstitution
 import ACUIHE.Solver.Search.Matrix
 import ACUIHE.Solver.Search.E.Body
 
@@ -77,16 +78,6 @@ def classOfBody?
     (body : NormalForm Const Var Hom) : Option (EOccurrence left right) :=
   (findEOccurrence? left right body).bind configuration.1
 
-/-- A body-aware fold rebuilds the source normal form alongside its purified
-E-free image.  The proof field makes E-freeness intrinsic to construction. -/
-structure EPurificationScan
-    (Const Var Hom : Type u)
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (Basis : Type u) [Encodable Basis] where
-  source : NormalForm Const Var Hom
-  purified : NormalForm Basis Var Hom
-  acuih : isACUIh purified = true
-
 /-- Purify a normal form directly.  An `E(body)` is kept opaque and becomes
 one representative constant (or zero); the recursively scanned body is used
 only to recover its canonical normal form. -/
@@ -97,27 +88,7 @@ def purifyNormalFormScan
     (configuration : EConfiguration left right)
     (target : NormalForm Const Var Hom) :
     EPurificationScan Const Var Hom (ECombinationBasis left right) :=
-  target.fold
-    ⟨∅, ∅, isACUIh_empty⟩
-    (fun first second =>
-      ⟨first.source ∪ second.source,
-        first.purified ∪ second.purified,
-        by simp [first.acuih, second.acuih]⟩)
-    (fun path name =>
-      ⟨{(path, .constant name)},
-        {(path, .constant (.inl name))}, by simp [isACUIh]⟩)
-    (fun path name =>
-      ⟨{(path, .variable name)},
-        {(path, .variable name)}, by simp [isACUIh]⟩)
-    (fun path scannedBody =>
-      let purified : NormalForm (ECombinationBasis left right) Var Hom :=
-        match classOfBody? left right configuration scannedBody.source with
-        | none => ∅
-        | some representative =>
-            {(path, .constant (.inr representative))}
-      ⟨{(path, .eOperator scannedBody.source)}, purified, by
-        simp only [purified]
-        split <;> simp [isACUIh]⟩)
+  substituteEBlocksScan (classOfBody? left right configuration) target
 
 /-- The normal-form-native purified image. -/
 def purifyNormalForm
@@ -836,20 +807,6 @@ theorem eCombination_matrix_solution_solved_row
   rw [rowEquality] at selected
   exact selected
 
-/-- Replace abstract basis constants in a ground term. -/
-def replaceBasisConstants
-    {Basis : Type u} {Const : Type v} {Hom : Type w}
-    (replacement : Basis → Term Const (Fin 0) Hom) :
-    Term Basis (Fin 0) Hom → Term Const (Fin 0) Hom
-  | .zero => .zero
-  | .const name => replacement name
-  | .var impossible => impossible.elim0
-  | .add left right =>
-      .add (replaceBasisConstants replacement left)
-        (replaceBasisConstants replacement right)
-  | .hom name body => .hom name (replaceBasisConstants replacement body)
-  | .free body => .free (replaceBasisConstants replacement body)
-
 /-- Interpret one representative by well-founded recursion on the strict rank
 stored in the certificate.  A non-smaller occurrence is interpreted as zero;
 validity and the zero rows prove that such a branch is unreachable in every
@@ -1147,21 +1104,7 @@ def projectGroundNormalFormPair
     (target : NormalForm Const (Fin 0) Hom) :
     NormalForm Const (Fin 0) Hom ×
       NormalForm (ECombinationBasis left right) (Fin 0) Hom :=
-  target.fold
-    (∅, ∅)
-    (fun first second => (first.1 ∪ second.1, first.2 ∪ second.2))
-    (fun path name =>
-      ({(path, .constant name)}, {(path, .constant (.inl name))}))
-    (fun _ impossible => impossible.elim0)
-    (fun path body =>
-      let original : NormalForm Const (Fin 0) Hom :=
-        {(path, .eOperator body.1)}
-      let projected : NormalForm
-          (ECombinationBasis left right) (Fin 0) Hom :=
-        match representativeForBody? left right assignment body.1 with
-        | none => ∅
-        | some representative => {(path, .constant (.inr representative))}
-      (original, projected))
+  projectEBlocksPair (representativeForBody? left right assignment) target
 
 /-- Shallow alien-term projection of a ground normal form. -/
 def projectGroundNormalForm

@@ -439,6 +439,42 @@ theorem buildShallow?_sound
           rw [shallow] at found
           exact automaton.buildTree?_sound (maximum + 1) state found
 
+/--
+When the branch alphabet is empty, every accepting run can be replaced by a
+run of height at most one: leaves stay leaves and an internal node has no
+children to reproduce.  This makes bounded search an exact decision procedure
+for this important degenerate alphabet.
+-/
+theorem buildShallow?_complete_of_noBranches
+    [FinEnum Branch] [FinEnum Label]
+    (automaton : ACUIHE.Solver.Search.Automaton State Branch Label)
+    (state : State)
+    (noBranches : FinEnum.toList Branch = [])
+    {tree : Tree Branch Label}
+    (accepted : automaton.Accepts state tree) :
+    ∃ result, buildShallow? automaton 1 state = some result := by
+  have branchImpossible (branch : Branch) : False := by
+    have membership := FinEnum.mem_toList branch
+    rw [noBranches] at membership
+    simp at membership
+  have bounded : ∃ candidate : BoundedTree Branch Label 1,
+      automaton.Accepts state (candidate.toTree 1) := by
+    cases accepted with
+    | leaf valid terminal =>
+        exact ⟨(_, none), .leaf valid terminal⟩
+    | node valid _children =>
+        let children : Branch → BoundedTree Branch Label 0 :=
+          fun branch => (branchImpossible branch).elim
+        exact ⟨(_, some children), .node valid fun branch =>
+          (branchImpossible branch).elim⟩
+  rcases bounded with ⟨candidate, candidateAccepted⟩
+  rcases automaton.buildTree?_complete 1 state candidate candidateAccepted with
+    ⟨result, found⟩
+  unfold buildShallow?
+  cases earlier : buildShallow? automaton 0 state with
+  | none => exact ⟨result, by simp [found]⟩
+  | some earlierTree => exact ⟨earlierTree, by simp⟩
+
 /-- Separate exact solver.  Small witnesses are tried first; otherwise an
 exact reachable-state/productivity fixed point decides rejection and supplies
 a much smaller completeness bound for witness reconstruction. -/
@@ -455,6 +491,45 @@ def solve?
         automaton.buildTree? reachable.card initial
       else
         none
+
+/--
+The proof-carrying variant of `solve?` accepts a cardinality which callers may
+compute without enumerating `State`.  The equality proof is erased by code
+generation, so the optimized bound costs only the computation of `stateCard`.
+-/
+def solveWithCard?
+    [FinEnum State] [FinEnum Branch] [FinEnum Label]
+    (automaton : ACUIHE.Solver.Search.Automaton State Branch Label)
+    (initial : State)
+    (stateCard : Nat)
+    (_cardinality : stateCard = FinEnum.card State)
+    (shallowBound : Nat := 8) : Option (Tree Branch Label) :=
+  match buildShallow? automaton shallowBound initial with
+  | some tree => some tree
+  | none =>
+      let reachable :=
+        iterateUntilStable (growReachable automaton) stateCard {initial}
+      let productive := productiveStates automaton reachable
+      if initial ∈ productive then
+        automaton.buildTree? reachable.card initial
+      else
+        none
+
+/--
+Use the height-one decision procedure for an empty branch alphabet, otherwise
+fall back to the proof-carrying exact fixed-point solver.
+-/
+def solveWithCardAndBranchShortcut?
+    [FinEnum State] [FinEnum Branch] [FinEnum Label]
+    (automaton : ACUIHE.Solver.Search.Automaton State Branch Label)
+    (initial : State)
+    (stateCard : Nat)
+    (cardinality : stateCard = FinEnum.card State)
+    (shallowBound : Nat := 8) : Option (Tree Branch Label) :=
+  if FinEnum.toList Branch = [] then
+    buildShallow? automaton 1 initial
+  else
+    solveWithCard? automaton initial stateCard cardinality shallowBound
 
 theorem solve?_sound
     [FinEnum State] [FinEnum Branch] [FinEnum Label]
@@ -521,6 +596,119 @@ theorem solve?_eq_none_iff
     | some tree =>
         exact False.elim (rejected ⟨tree,
           solve?_sound automaton initial shallowBound found⟩)
+
+/-- `solveWithCard?` changes only how the exact fixed-point fuel is computed. -/
+theorem solveWithCard?_eq_solve?
+    [FinEnum State] [FinEnum Branch] [FinEnum Label]
+    (automaton : ACUIHE.Solver.Search.Automaton State Branch Label)
+    (initial : State)
+    (stateCard : Nat)
+    (cardinality : stateCard = FinEnum.card State)
+    (shallowBound : Nat := 8) :
+    solveWithCard? automaton initial stateCard cardinality shallowBound =
+      solve? automaton initial shallowBound := by
+  subst stateCard
+  rfl
+
+theorem solveWithCard?_sound
+    [FinEnum State] [FinEnum Branch] [FinEnum Label]
+    (automaton : ACUIHE.Solver.Search.Automaton State Branch Label)
+    (initial : State)
+    (stateCard : Nat)
+    (cardinality : stateCard = FinEnum.card State)
+    (shallowBound : Nat := 8)
+    {tree : Tree Branch Label}
+    (found : solveWithCard? automaton initial stateCard cardinality shallowBound = some tree) :
+    automaton.Accepts initial tree := by
+  rw [solveWithCard?_eq_solve? automaton initial stateCard cardinality shallowBound] at found
+  exact solve?_sound automaton initial shallowBound found
+
+theorem solveWithCard?_complete
+    [FinEnum State] [FinEnum Branch] [FinEnum Label]
+    (automaton : ACUIHE.Solver.Search.Automaton State Branch Label)
+    (initial : State)
+    (stateCard : Nat)
+    (cardinality : stateCard = FinEnum.card State)
+    (shallowBound : Nat := 8)
+    (solution : ∃ tree, automaton.Accepts initial tree) :
+    ∃ tree,
+      solveWithCard? automaton initial stateCard cardinality shallowBound = some tree := by
+  rw [solveWithCard?_eq_solve? automaton initial stateCard cardinality shallowBound]
+  exact solve?_complete automaton initial shallowBound solution
+
+theorem solveWithCard?_eq_none_iff
+    [FinEnum State] [FinEnum Branch] [FinEnum Label]
+    (automaton : ACUIHE.Solver.Search.Automaton State Branch Label)
+    (initial : State)
+    (stateCard : Nat)
+    (cardinality : stateCard = FinEnum.card State)
+    (shallowBound : Nat := 8) :
+    solveWithCard? automaton initial stateCard cardinality shallowBound = none ↔
+      ¬ ∃ tree, automaton.Accepts initial tree := by
+  rw [solveWithCard?_eq_solve? automaton initial stateCard cardinality shallowBound]
+  exact solve?_eq_none_iff automaton initial shallowBound
+
+theorem solveWithCardAndBranchShortcut?_sound
+    [FinEnum State] [FinEnum Branch] [FinEnum Label]
+    (automaton : ACUIHE.Solver.Search.Automaton State Branch Label)
+    (initial : State)
+    (stateCard : Nat)
+    (cardinality : stateCard = FinEnum.card State)
+    (shallowBound : Nat := 8)
+    {tree : Tree Branch Label}
+    (found : solveWithCardAndBranchShortcut? automaton initial stateCard
+      cardinality shallowBound = some tree) :
+    automaton.Accepts initial tree := by
+  unfold solveWithCardAndBranchShortcut? at found
+  split at found
+  · exact buildShallow?_sound automaton 1 initial found
+  · exact solveWithCard?_sound automaton initial stateCard cardinality
+      shallowBound found
+
+theorem solveWithCardAndBranchShortcut?_complete
+    [FinEnum State] [FinEnum Branch] [FinEnum Label]
+    (automaton : ACUIHE.Solver.Search.Automaton State Branch Label)
+    (initial : State)
+    (stateCard : Nat)
+    (cardinality : stateCard = FinEnum.card State)
+    (shallowBound : Nat := 8)
+    (solution : ∃ tree, automaton.Accepts initial tree) :
+    ∃ tree, solveWithCardAndBranchShortcut? automaton initial stateCard
+      cardinality shallowBound = some tree := by
+  rcases solution with ⟨tree, accepted⟩
+  unfold solveWithCardAndBranchShortcut?
+  split
+  next noBranches =>
+    exact buildShallow?_complete_of_noBranches automaton initial
+      noBranches accepted
+  next _hasBranches =>
+    exact solveWithCard?_complete automaton initial stateCard cardinality
+      shallowBound ⟨tree, accepted⟩
+
+theorem solveWithCardAndBranchShortcut?_eq_none_iff
+    [FinEnum State] [FinEnum Branch] [FinEnum Label]
+    (automaton : ACUIHE.Solver.Search.Automaton State Branch Label)
+    (initial : State)
+    (stateCard : Nat)
+    (cardinality : stateCard = FinEnum.card State)
+    (shallowBound : Nat := 8) :
+    solveWithCardAndBranchShortcut? automaton initial stateCard cardinality
+      shallowBound = none ↔
+      ¬ ∃ tree, automaton.Accepts initial tree := by
+  constructor
+  · intro failed solution
+    rcases solveWithCardAndBranchShortcut?_complete automaton initial stateCard
+        cardinality shallowBound solution with ⟨tree, found⟩
+    rw [failed] at found
+    contradiction
+  · intro rejected
+    cases found : solveWithCardAndBranchShortcut? automaton initial stateCard
+        cardinality shallowBound with
+    | none => rfl
+    | some tree =>
+        exact False.elim (rejected ⟨tree,
+          solveWithCardAndBranchShortcut?_sound automaton initial stateCard
+            cardinality shallowBound found⟩)
 
 end Automaton
 

@@ -1,0 +1,26 @@
+struct Person {
+  name: String,
+}
+
+let alice = Person("Alice")
+let bob = Person("Bob")
+let carol = Person("Carol")
+
+let follows = {alice} -> {bob}
+let collaborates = {alice, bob} -> {carol}
+let friends = {bob} <-> {carol}
+
+// Inference retains both directed and undirected edge kinds.
+let network = {
+  follows,
+  collaborates,
+  friends,
+}
+
+// This annotation is intentional: it explicitly requests that the undirected
+// edge be expanded into its two directed orientations.
+let directed_edges: Set<Edge<Person,Person,Bottom>> = {
+  follows,
+  collaborates,
+  friends,
+}

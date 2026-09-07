@@ -80,9 +80,7 @@ theorem projectGroundNormalFormPair_first
         {(path, .eOperator body.1)}
       let projected : NormalForm
           (ECombinationBasis left right) (Fin 0) Hom :=
-        match representativeForBody? left right assignment body.1 with
-        | none => ∅
-        | some representative => {(path, .constant (.inr representative))}
+        alienConstantAtPath path (representativeForBody? left right assignment body.1)
       (original, projected))
     (∅ : NormalForm Const (Fin 0) Hom) (· ∪ ·)
     (fun path name => {(path, .constant name)})
@@ -93,7 +91,7 @@ theorem projectGroundNormalFormPair_first
     (by intro path impossible; exact impossible.elim0)
     (by intro path body; rfl) target
   refine Eq.trans ?_ (rebuildNormalForm_eq target)
-  unfold projectGroundNormalFormPair
+  unfold projectGroundNormalFormPair projectEBlocksPair
   exact folded
 
 theorem normalUnionEmpty
@@ -144,7 +142,7 @@ theorem projectGroundNormalFormPair_union
       let secondResult := projectGroundNormalFormPair left right assignment second
       (firstResult.1 ∪ secondResult.1,
         firstResult.2 ∪ secondResult.2) := by
-  unfold projectGroundNormalFormPair
+  unfold projectGroundNormalFormPair projectEBlocksPair
   apply NormalForm.fold_union
   intro value
   apply Prod.ext <;> apply normalUnionEmpty
@@ -197,9 +195,7 @@ theorem projectGroundNormalFormPair_prefixHom
         {(path, .eOperator body.1)}
       let projected : NormalForm
           (ECombinationBasis left right) (Fin 0) Hom :=
-        match representativeForBody? left right assignment body.1 with
-        | none => ∅
-        | some representative => {(path, .constant (.inr representative))}
+        alienConstantAtPath path (representativeForBody? left right assignment body.1)
       (original, projected))
     name
     (fun result => (prefixHom name result.1, prefixHom name result.2))
@@ -227,7 +223,7 @@ theorem projectGroundNormalFormPair_prefixHom
             (.constant (Sum.inr representative :
               ECombinationBasis left right))).symm)
     target
-  unfold projectGroundNormalFormPair
+  unfold projectGroundNormalFormPair projectEBlocksPair
   exact folded
 
 theorem projectGroundNormalForm_prefixHom
@@ -253,13 +249,10 @@ theorem projectGroundNormalForm_wrapE
     (body : NormalForm Const (Fin 0) Hom) :
     projectGroundNormalForm left right assignment (wrapE body) =
       if body = ∅ then ∅ else
-        match representativeForBody? left right assignment body with
-        | none => ∅
-        | some representative =>
-            {([], .constant (Sum.inr representative))} := by
+        alienConstantAtPath [] (representativeForBody? left right assignment body) := by
   by_cases bodyZero : body = ∅
   · subst body
-    simp [projectGroundNormalForm, projectGroundNormalFormPair]
+    simp [projectGroundNormalForm, projectGroundNormalFormPair, projectEBlocksPair]
   · rw [if_neg bodyZero, wrapE_of_ne_empty bodyZero]
     have singletonFold :
         projectGroundNormalFormPair left right assignment
@@ -268,14 +261,10 @@ theorem projectGroundNormalForm_wrapE
             projectGroundNormalFormPair left right assignment body
           let projected : NormalForm
               (ECombinationBasis left right) (Fin 0) Hom :=
-            match representativeForBody? left right assignment bodyResult.1 with
-            | none => ∅
-            | some representative =>
-                {([], .constant (Sum.inr representative))}
+            alienConstantAtPath [] (representativeForBody? left right assignment bodyResult.1)
           ({([], .eOperator bodyResult.1)} ∪ ∅, projected ∪ ∅) := by
-      unfold projectGroundNormalFormPair
+      unfold projectGroundNormalFormPair projectEBlocksPair
       rw [NormalForm.fold_singleton]
-      rfl
     unfold projectGroundNormalForm
     rw [singletonFold]
     dsimp only
@@ -497,9 +486,7 @@ theorem projectGroundNormalForm_isACUIh
         {(path, .eOperator body.1)}
       let projected : NormalForm
           (ECombinationBasis left right) (Fin 0) Hom :=
-        match representativeForBody? left right assignment body.1 with
-        | none => ∅
-        | some representative => {(path, .constant (.inr representative))}
+        alienConstantAtPath path (representativeForBody? left right assignment body.1)
       (original, projected))
     true (fun first second => first && second)
     (fun _ _ => true) (fun _ _ => true) (fun _ _ => true)
@@ -602,7 +589,7 @@ theorem projectGroundNormalForm_constantForm
         (constantForm (Var := Fin 0) (Hom := Hom) name) =
       constantForm (Var := Fin 0) (Hom := Hom)
         (Sum.inl name : ECombinationBasis left right) := by
-  unfold projectGroundNormalForm projectGroundNormalFormPair constantForm
+  unfold projectGroundNormalForm projectGroundNormalFormPair projectEBlocksPair constantForm
   rw [NormalForm.fold_singleton]
   simp [normalUnionEmpty]
 
@@ -615,15 +602,7 @@ theorem projectGroundNormalForm_empty
     (left right : NormalForm Const Var Hom)
     (assignment : Var → NormalForm Const (Fin 0) Hom) :
     projectGroundNormalForm left right assignment ∅ = ∅ := by
-  simp [projectGroundNormalForm, projectGroundNormalFormPair]
-
-/-- Prefix an entire homomorphism path to a normal form. -/
-def prefixHomPath
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (path : List Hom) (target : NormalForm Const Var Hom) :
-    NormalForm Const Var Hom :=
-  path.foldr prefixHom target
+  simp [projectGroundNormalForm, projectGroundNormalFormPair, projectEBlocksPair]
 
 theorem normalize_substitute_reifyPath
     {Const : Type u} {SourceVar : Type v} {TargetVar : Type w}
@@ -1054,11 +1033,7 @@ private def projectionProofEOperator
     (body : ProjectionProofScan Const Var Hom left right assignment) :
     ProjectionProofScan Const Var Hom left right assignment :=
   let purified : NormalForm (ECombinationBasis left right) Var Hom :=
-    match classOfBody? left right
-        (projectedEConfiguration left right assignment) body.source with
-    | none => ∅
-    | some representative =>
-        {(path, .constant (.inr representative))}
+    alienConstantAtPath path (classOfBody? left right (projectedEConfiguration left right assignment) body.source)
   ⟨{(path, .eOperator body.source)},
     insert body.source body.bodies,
     purified,
@@ -1104,7 +1079,7 @@ private def projectionProofEOperator
       | some representative =>
           have representativeEquality : representative = selected := by
             unfold constantSupport at membership
-            simp only [purified, classResult] at membership
+            simp only [purified, classResult, alienConstantAtPath_some] at membership
             rw [NormalForm.fold_singleton] at membership
             have reverseEquality : selected = representative := by
               simpa using membership
@@ -1252,10 +1227,7 @@ def purificationPairEOperator
     NormalForm Const Var Hom ×
       NormalForm (ECombinationBasis left right) Var Hom :=
   let purified : NormalForm (ECombinationBasis left right) Var Hom :=
-    match classOfBody? left right configuration body.1 with
-    | none => ∅
-    | some representative =>
-        {(path, .constant (.inr representative))}
+    alienConstantAtPath path (classOfBody? left right configuration body.1)
   ({(path, .eOperator body.1)}, purified)
 
 def purificationPair
@@ -1309,11 +1281,7 @@ private theorem projectionProofScan_pair
       ({(path, .variable name)}, {(path, .variable name)}))
     (fun path body =>
       let purified : NormalForm (ECombinationBasis left right) Var Hom :=
-        match classOfBody? left right
-            (projectedEConfiguration left right assignment) body.1 with
-        | none => ∅
-        | some representative =>
-            {(path, .constant (.inr representative))}
+        alienConstantAtPath path (classOfBody? left right (projectedEConfiguration left right assignment) body.1)
       ({(path, .eOperator body.1)}, purified))
     (by rfl)
     (by intro first second; rfl)
@@ -1334,7 +1302,7 @@ theorem purifyNormalFormScan_pair
     (result.source, result.purified) =
       purificationPair left right configuration target := by
   dsimp only
-  unfold purifyNormalFormScan purificationPair
+  unfold purifyNormalFormScan substituteEBlocksScan purificationPair
   exact NormalForm.fold_hom
     (fun result : EPurificationScan Const Var Hom
         (ECombinationBasis left right) =>
@@ -1352,13 +1320,9 @@ theorem purifyNormalFormScan_pair
         {(path, .variable name)}, by simp [isACUIh]⟩)
     (fun path body =>
       let purified : NormalForm (ECombinationBasis left right) Var Hom :=
-        match classOfBody? left right configuration body.source with
-        | none => ∅
-        | some representative =>
-            {(path, .constant (.inr representative))}
+        alienConstantAtPath path (classOfBody? left right configuration body.source)
       ⟨{(path, .eOperator body.source)}, purified, by
-        simp only [purified]
-        split <;> simp [isACUIh]⟩)
+        exact alienConstantAtPath_isACUIh _ _⟩)
     (∅, ∅)
     (fun first second =>
       (first.1 ∪ second.1, first.2 ∪ second.2))
@@ -1368,10 +1332,7 @@ theorem purifyNormalFormScan_pair
       ({(path, .variable name)}, {(path, .variable name)}))
     (fun path body =>
       let purified : NormalForm (ECombinationBasis left right) Var Hom :=
-        match classOfBody? left right configuration body.1 with
-        | none => ∅
-        | some representative =>
-            {(path, .constant (.inr representative))}
+        alienConstantAtPath path (classOfBody? left right configuration body.1)
       ({(path, .eOperator body.1)}, purified))
     (by rfl)
     (by intro first second; rfl)
@@ -1977,9 +1938,7 @@ theorem constantCoefficient_projectGroundNormalForm_inr
         {(path, .eOperator body.1)}
       let projected : NormalForm
           (ECombinationBasis left right) (Fin 0) Hom :=
-        match representativeForBody? left right assignment body.1 with
-        | none => ∅
-        | some representative => {(path, .constant (.inr representative))}
+        alienConstantAtPath path (representativeForBody? left right assignment body.1)
       (original, projected))
     (∅, 0)
     (fun first second => (first.1 ∪ second.1, first.2 + second.2))
@@ -2004,7 +1963,7 @@ theorem constantCoefficient_projectGroundNormalForm_inr
             simp
           · simp [equality])
     target
-  unfold projectGroundNormalForm projectGroundNormalFormPair
+  unfold projectGroundNormalForm projectGroundNormalFormPair projectEBlocksPair
   exact congrArg Prod.snd folded
 
 local instance coefficientPairCommutative

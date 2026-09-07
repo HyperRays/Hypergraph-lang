@@ -1,478 +1,440 @@
+import ACUIHE.ACUIh
 import ACUIHE.Solver.Substitution
 
-/-! Reverse substitution of complete `E` blocks by ordinary variables. -/
+/-!
+Abstraction of complete `E` atoms into alien constants and expansion of those
+constants back into terms. The caller supplies body classifications and
+replacement values; this module does not depend on search configurations,
+matrices, or the enumeration of input occurrences.
 
-namespace ACUIHE
-
-universe u v w
-
-namespace Term
-
-/-- A term belongs to the ACUIh fragment when it contains no `E` operator. -/
-def IsACUIh {Const : Type u} {Var : Type v} {Hom : Type w} :
-    Term Const Var Hom → Prop
-  | .zero => True
-  | .const _ => True
-  | .var _ => True
-  | .add left right => IsACUIh left ∧ IsACUIh right
-  | .hom _ body => IsACUIh body
-  | .free _ => False
-
-end Term
-
-namespace Solver
-
-/-- The syntactic address of an `E` block in a reified normal form. -/
-abbrev EBlockAddress := List Nat
-
-/--
-Variables after reverse substitution. An original variable is tagged with
-`inl`; a fresh ordinary variable standing for an `E` block is tagged with the
-block's syntactic address using `inr`.
+Abstraction preserves homomorphism prefixes and original variables. A body
+classified as `none` contributes zero, so arbitrary classifications do not
+have an unconditional round trip. Solver-specific reconstruction establishes
+the required relationship for valid, solved configurations.
 -/
-abbrev EBlockVariable (Var : Type v) := Sum Var EBlockAddress
 
-/--
-An executable check that a normal form belongs to the ACUIh fragment.
+namespace ACUIHE.Solver
 
-Constants, variables, and homomorphism paths are accepted. Encountering any
-encoded `E` summand makes the result false.
--/
-def isACUIh
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (normalForm : NormalForm Const Var Hom) : Bool :=
-  normalForm.fold true (fun left right => left && right)
-    (fun _ _ => true)
-    (fun _ _ => true)
-    (fun _ _ => false)
+open NormalForm.Internal
 
-@[simp]
-theorem isACUIh_empty
-    {Const : Type u} {Var : Type v} {Hom : Type w}
+universe u v w x
+
+local instance {Alpha : Type*} [Encodable Alpha] : DecidableEq Alpha :=
+  Encodable.decidableEqOfEncodable Alpha
+
+local instance normalUnionCommutative
+    {Const Var Hom : Type*}
     [Encodable Const] [Encodable Var] [Encodable Hom] :
-    isACUIh (∅ : NormalForm Const Var Hom) = true := by
-  simp [isACUIh]
+    Std.Commutative
+      (fun left right : NormalForm Const Var Hom => left ∪ right) :=
+  ⟨fun left right => by
+    apply NormalForm.ext_raw
+    exact rawUnion_comm left.raw right.raw⟩
+
+local instance normalUnionAssociative
+    {Const Var Hom : Type*}
+    [Encodable Const] [Encodable Var] [Encodable Hom] :
+    Std.Associative
+      (fun left right : NormalForm Const Var Hom => left ∪ right) :=
+  ⟨fun left middle right => by
+    apply NormalForm.ext_raw
+    exact rawUnion_assoc left.raw middle.raw right.raw⟩
+
+local instance normalUnionIdempotent
+    {Const Var Hom : Type*}
+    [Encodable Const] [Encodable Var] [Encodable Hom] :
+    Std.IdempotentOp
+      (fun left right : NormalForm Const Var Hom => left ∪ right) :=
+  ⟨fun value => by
+    apply NormalForm.ext_raw
+    exact rawUnion_self value.raw⟩
+
+private theorem normalUnionEmpty
+    {Const Var Hom : Type*}
+    [Encodable Const] [Encodable Var] [Encodable Hom]
+    (value : NormalForm Const Var Hom) : value ∪ ∅ = value := by
+  apply NormalForm.ext_raw
+  exact rawUnion_empty value.raw
+
+/-- One alien atom under its original homomorphism path. An absent class
+contributes zero. This handler is shared by execution and the proof folds. -/
+def alienConstantAtPath
+    {Const : Type u} {Var : Type v} {Hom : Type w} {Alien : Type x}
+    [Encodable Const] [Encodable Var] [Encodable Hom] [Encodable Alien]
+    (path : List Hom) (representative : Option Alien) :
+    NormalForm (Const ⊕ Alien) Var Hom :=
+  match representative with
+  | none => ∅
+  | some name => {(path, .constant (.inr name))}
 
 @[simp]
-theorem isACUIh_constantForm
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (name : Const) :
-    isACUIh (constantForm (Var := Var) (Hom := Hom) name) = true := by
-  simp [isACUIh, constantForm]
+theorem alienConstantAtPath_none
+    {Const : Type u} {Var : Type v} {Hom : Type w} {Alien : Type x}
+    [Encodable Const] [Encodable Var] [Encodable Hom] [Encodable Alien]
+    (path : List Hom) :
+    alienConstantAtPath (Const := Const) (Var := Var) (Alien := Alien) path none = ∅ := rfl
 
 @[simp]
-theorem isACUIh_variableForm
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (name : Var) :
-    isACUIh (variableForm (Const := Const) (Hom := Hom) name) = true := by
-  simp [isACUIh, variableForm]
+theorem alienConstantAtPath_some
+    {Const : Type u} {Var : Type v} {Hom : Type w} {Alien : Type x}
+    [Encodable Const] [Encodable Var] [Encodable Hom] [Encodable Alien]
+    (path : List Hom) (name : Alien) :
+    alienConstantAtPath (Const := Const) (Var := Var) path (some name) =
+      {(path, .constant (.inr name))} := rfl
 
 @[simp]
-theorem isACUIh_union
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (left right : NormalForm Const Var Hom) :
-    isACUIh (left ∪ right) = (isACUIh left && isACUIh right) := by
-  unfold isACUIh
-  apply NormalForm.fold_union
-  intro value
-  exact Bool.and_true value
+theorem alienConstantAtPath_isACUIh
+    {Const : Type u} {Var : Type v} {Hom : Type w} {Alien : Type x}
+    [Encodable Const] [Encodable Var] [Encodable Hom] [Encodable Alien]
+    (path : List Hom) (representative : Option Alien) :
+    isACUIh (alienConstantAtPath (Const := Const) (Var := Var) path representative) = true := by
+  cases representative <;> simp [alienConstantAtPath, isACUIh]
 
-@[simp]
-theorem isACUIh_prefixHom
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (name : Hom) (normalForm : NormalForm Const Var Hom) :
-    isACUIh (prefixHom name normalForm) = isACUIh normalForm := by
-  unfold isACUIh
-  simpa only [id_eq] using
-    (NormalForm.fold_prefixHom
-      (zero := true)
-      (combine := fun left right => left && right)
-      (zeroRight := Bool.and_true)
-      (onConstant := fun _ _ => true)
-      (onVariable := fun _ _ => true)
-      (onEOperator := fun _ _ => false)
-      name id
-      (mapZero := rfl)
-      (mapCombine := by intro left right; rfl)
-      (mapConstant := by intro path constantName; rfl)
-      (mapVariable := by intro path variableName; rfl)
-      (mapEOperator := by intro path body; rfl)
-      normalForm)
-
-/-- Normalizing an E-free term produces an ACUIh normal form. -/
-theorem isACUIh_normalize
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (term : Term Const Var Hom) (acuih : term.IsACUIh) :
-    isACUIh (normalize term) = true := by
-  induction term with
-  | zero => exact isACUIh_empty
-  | const name => exact isACUIh_constantForm name
-  | var name => exact isACUIh_variableForm name
-  | add left right leftHypothesis rightHypothesis =>
-      rw [normalize_add, isACUIh_union,
-        leftHypothesis acuih.1, rightHypothesis acuih.2]
-      rfl
-  | hom name body inductionHypothesis =>
-      rw [normalize_hom, isACUIh_prefixHom,
-        inductionHypothesis acuih]
-  | free body inductionHypothesis =>
-      exact False.elim acuih
-
-/--
-The result of replacing every complete `E(body)` by an ordinary variable,
-paired with the substitution that expands all those variables again.
-
-The `acuih` field enforces that the resulting normal form is E-free.
--/
-structure EBlockReverseSubstitution
+/-- A body-aware fold rebuilds the source normal form alongside its purified
+E-free image.  The proof field makes E-freeness intrinsic to construction. -/
+structure EPurificationScan
     (Const : Type u) (Var : Type v) (Hom : Type w)
-    [Encodable Const] [Encodable Var] [Encodable Hom] where
-  normalForm : NormalForm Const (EBlockVariable Var) Hom
-  substitution : EBlockVariable Var → Term Const Var Hom
-  acuih : isACUIh normalForm = true
-
-namespace EBlockReverseSubstitution
-
-/--
-Transform the E-free normal form while keeping its restoring substitution
-attached.  The caller must prove that the transformed form remains ACUIh.
--/
-def mapNormalForm
-    {Const : Type u} {Var : Type v} {Hom : Type w}
     [Encodable Const] [Encodable Var] [Encodable Hom]
-    (state : EBlockReverseSubstitution Const Var Hom)
-    (transform : NormalForm Const (EBlockVariable Var) Hom →
-      NormalForm Const (EBlockVariable Var) Hom)
-    (acuih : isACUIh (transform state.normalForm) = true) :
-    EBlockReverseSubstitution Const Var Hom where
-  normalForm := transform state.normalForm
-  substitution := state.substitution
-  acuih := acuih
+    (Basis : Type x) [Encodable Basis] where
+  source : NormalForm Const Var Hom
+  purified : NormalForm Basis Var Hom
+  acuih : isACUIh purified = true
 
-/-- Restore all address variables in a bundled E-free normal form. -/
-def restore
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (state : EBlockReverseSubstitution Const Var Hom) :
-    NormalForm Const Var Hom :=
-  substituteNormalForm state.substitution state.normalForm
+/-- Replace complete `E` atoms by alien constants selected from their bodies.
+`none` replaces the atom by zero. Original variables and all surrounding
+homomorphism paths are preserved; nested bodies are rebuilt for lookup but
+their projected images are discarded when replacing the enclosing atom. -/
+def substituteEBlocksScan
+    {Const : Type u} {Var : Type v} {Hom : Type w} {Alien : Type x}
+    [Encodable Const] [Encodable Var] [Encodable Hom] [Encodable Alien]
+    (classOfBody : NormalForm Const Var Hom → Option Alien)
+    (target : NormalForm Const Var Hom) :
+    EPurificationScan Const Var Hom (Const ⊕ Alien) :=
+  target.fold
+    ⟨∅, ∅, isACUIh_empty⟩
+    (fun first second =>
+      ⟨first.source ∪ second.source,
+        first.purified ∪ second.purified,
+        by simp [first.acuih, second.acuih]⟩)
+    (fun path name =>
+      ⟨{(path, .constant name)},
+        {(path, .constant (.inl name))}, by simp [isACUIh]⟩)
+    (fun path name =>
+      ⟨{(path, .variable name)},
+        {(path, .variable name)}, by simp [isACUIh]⟩)
+    (fun path scannedBody =>
+      let purified : NormalForm (Const ⊕ Alien) Var Hom :=
+        alienConstantAtPath path (classOfBody scannedBody.source)
+      ⟨{(path, .eOperator scannedBody.source)}, purified, by
+        exact alienConstantAtPath_isACUIh _ _⟩)
 
-/-- Restoring a bundled E-free normal form produces a canonical form. -/
-theorem restore_isCanonical
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (state : EBlockReverseSubstitution Const Var Hom) :
-    IsCanonical state.restore := by
-  unfold restore
-  exact substituteNormalForm_isCanonical _ _
+/-- The alien image of a normal form is always E-free. -/
+def substituteEBlocks
+    {Const : Type u} {Var : Type v} {Hom : Type w} {Alien : Type x}
+    [Encodable Const] [Encodable Var] [Encodable Hom] [Encodable Alien]
+    (classOfBody : NormalForm Const Var Hom → Option Alien)
+    (target : NormalForm Const Var Hom) : NormalForm (Const ⊕ Alien) Var Hom :=
+  (substituteEBlocksScan classOfBody target).purified
 
 @[simp]
-theorem mapNormalForm_normalForm
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (state : EBlockReverseSubstitution Const Var Hom)
-    (transform : NormalForm Const (EBlockVariable Var) Hom →
-      NormalForm Const (EBlockVariable Var) Hom)
-    (acuih : isACUIh (transform state.normalForm) = true) :
-    (state.mapNormalForm transform acuih).normalForm =
-      transform state.normalForm :=
-  rfl
+theorem substituteEBlocks_isACUIh
+    {Const : Type u} {Var : Type v} {Hom : Type w} {Alien : Type x}
+    [Encodable Const] [Encodable Var] [Encodable Hom] [Encodable Alien]
+    (classOfBody : NormalForm Const Var Hom → Option Alien)
+    (target : NormalForm Const Var Hom) :
+    isACUIh (substituteEBlocks classOfBody target) = true :=
+  (substituteEBlocksScan classOfBody target).acuih
 
-@[simp]
-theorem mapNormalForm_substitution
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (state : EBlockReverseSubstitution Const Var Hom)
-    (transform : NormalForm Const (EBlockVariable Var) Hom →
-      NormalForm Const (EBlockVariable Var) Hom)
-    (acuih : isACUIh (transform state.normalForm) = true) :
-    (state.mapNormalForm transform acuih).substitution = state.substitution :=
-  rfl
+/-- Ground projection with the source retained alongside its alien image.
+The caller chooses which ground bodies have representatives; unmatched atoms
+are discarded. This is the pair-valued traversal used in completeness. -/
+def projectEBlocksPair
+    {Const : Type u} {Hom : Type w} {Alien : Type x}
+    [Encodable Const] [Encodable Hom] [Encodable Alien]
+    (classOfBody : NormalForm Const (Fin 0) Hom → Option Alien)
+    (target : NormalForm Const (Fin 0) Hom) :
+    NormalForm Const (Fin 0) Hom × NormalForm (Const ⊕ Alien) (Fin 0) Hom :=
+  target.fold
+    (∅, ∅)
+    (fun first second => (first.1 ∪ second.1, first.2 ∪ second.2))
+    (fun path name =>
+      ({(path, .constant name)}, {(path, .constant (.inl name))}))
+    (fun _ impossible => impossible.elim0)
+    (fun path body =>
+      let original : NormalForm Const (Fin 0) Hom :=
+        {(path, .eOperator body.1)}
+      let projected : NormalForm
+          (Const ⊕ Alien) (Fin 0) Hom :=
+        alienConstantAtPath path (classOfBody body.1)
+      (original, projected))
 
-@[simp]
-theorem restore_mapNormalForm
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (state : EBlockReverseSubstitution Const Var Hom)
-    (transform : NormalForm Const (EBlockVariable Var) Hom →
-      NormalForm Const (EBlockVariable Var) Hom)
-    (acuih : isACUIh (transform state.normalForm) = true) :
-    (state.mapNormalForm transform acuih).restore =
-      substituteNormalForm state.substitution (transform state.normalForm) :=
-  rfl
+/-- The pair-valued ground projection agrees with the production scan. -/
+theorem projectEBlocksPair_eq_scan
+    {Const : Type u} {Hom : Type w} {Alien : Type x}
+    [Encodable Const] [Encodable Hom] [Encodable Alien]
+    (classOfBody : NormalForm Const (Fin 0) Hom → Option Alien)
+    (target : NormalForm Const (Fin 0) Hom) :
+    projectEBlocksPair classOfBody target =
+      let result := substituteEBlocksScan classOfBody target
+      (result.source, result.purified) := by
+  symm
+  change (fun result : EPurificationScan Const (Fin 0) Hom (Const ⊕ Alien) =>
+    (result.source, result.purified)) (substituteEBlocksScan classOfBody target) = _
+  unfold substituteEBlocksScan projectEBlocksPair
+  apply NormalForm.fold_hom
+    (fun result : EPurificationScan Const (Fin 0) Hom (Const ⊕ Alien) =>
+      (result.source, result.purified))
+  · rfl
+  · intro first second; rfl
+  · intro path name; rfl
+  · intro path impossible; exact impossible.elim0
+  · intro path body; rfl
 
-end EBlockReverseSubstitution
-
-/-- Follow an E-block address through additions and homomorphisms. -/
-private def termAtEBlockAddress
-    {Const : Type u} {Var : Type v} {Hom : Type w} :
-    EBlockAddress → Term Const Var Hom → Option (Term Const Var Hom)
-  | [], term => some term
-  | 0 :: rest, .add left _ => termAtEBlockAddress rest left
-  | 1 :: rest, .add _ right => termAtEBlockAddress rest right
-  | 2 :: rest, .hom _ body => termAtEBlockAddress rest body
-  | _ :: _, _ => none
-
-private theorem termAtEBlockAddress_append
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    (term : Term Const Var Hom) (start suffix : EBlockAddress) :
-    termAtEBlockAddress (start ++ suffix) term =
-      (termAtEBlockAddress start term).bind
-        (fun selected => termAtEBlockAddress suffix selected) := by
-  induction start generalizing term with
-  | nil => rfl
-  | cons step rest inductionHypothesis =>
-      cases term <;> cases step with
-      | zero => simp [termAtEBlockAddress, inductionHypothesis]
-      | succ step =>
-          cases step with
-          | zero => simp [termAtEBlockAddress, inductionHypothesis]
-          | succ step =>
-              cases step with
-              | zero => simp [termAtEBlockAddress, inductionHypothesis]
-              | succ step => simp [termAtEBlockAddress]
-
-/--
-Collect the addresses of the complete `E` blocks that are replaced by
-`reverseSubstituteEBlocksTerm`.  Traversal stops at an `E` node because that
-whole node becomes one placeholder; nested blocks remain inside its restoring
-term and are handled by a later recursive subproblem.
--/
-def eBlockAddressesTerm
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    (address : EBlockAddress) :
-    Term Const Var Hom → List EBlockAddress
-  | .zero => []
-  | .const _ => []
-  | .var _ => []
-  | .add left right =>
-      eBlockAddressesTerm (address ++ [0]) left ++
-        eBlockAddressesTerm (address ++ [1]) right
-  | .hom _ body => eBlockAddressesTerm (address ++ [2]) body
-  | .free _ => [address]
-
-/-- The executable list of outermost complete `E`-block addresses in a
-normal form.  These are precisely the blocks processed by one reverse-
-substitution/search round. -/
-def eBlockAddresses
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (target : NormalForm Const Var Hom) : List EBlockAddress :=
-  eBlockAddressesTerm [] (reify target)
-
-/-- Replace every complete `E` node by an ordinary address variable. -/
-private def reverseSubstituteEBlocksTerm
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    (address : EBlockAddress) :
-    Term Const Var Hom → Term Const (EBlockVariable Var) Hom
+/-- Replace abstract basis constants in a ground term. -/
+def replaceBasisConstants
+    {Basis : Type u} {Const : Type v} {Hom : Type w}
+    (replacement : Basis → Term Const (Fin 0) Hom) :
+    Term Basis (Fin 0) Hom → Term Const (Fin 0) Hom
   | .zero => .zero
-  | .const name => .const name
-  | .var name => .var (.inl name)
+  | .const name => replacement name
+  | .var impossible => impossible.elim0
   | .add left right =>
-      .add
-        (reverseSubstituteEBlocksTerm (address ++ [0]) left)
-        (reverseSubstituteEBlocksTerm (address ++ [1]) right)
-  | .hom name body =>
-      .hom name (reverseSubstituteEBlocksTerm (address ++ [2]) body)
-  | .free _ => .var (.inr address)
+      .add (replaceBasisConstants replacement left)
+        (replaceBasisConstants replacement right)
+  | .hom name body => .hom name (replaceBasisConstants replacement body)
+  | .free body => .free (replaceBasisConstants replacement body)
 
-private theorem reverseSubstituteEBlocksTerm_isACUIh
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    (address : EBlockAddress) (term : Term Const Var Hom) :
-    (reverseSubstituteEBlocksTerm address term).IsACUIh := by
-  induction term generalizing address <;>
-    simp [reverseSubstituteEBlocksTerm, Term.IsACUIh, *]
+/-- Abstract every constant of a ground term into a variable. Since the
+result has no constants, its constant type can be chosen independently. -/
+def abstractBasisConstants
+    {Basis : Type u} {Const : Type v} {Hom : Type w} :
+    Term Basis (Fin 0) Hom → Term Const Basis Hom
+  | .zero => .zero
+  | .const name => .var name
+  | .var impossible => impossible.elim0
+  | .add left right => .add (abstractBasisConstants left) (abstractBasisConstants right)
+  | .hom name body => .hom name (abstractBasisConstants body)
+  | .free body => .free (abstractBasisConstants body)
 
-/--
-The substitution accompanying complete E-block reverse substitution.
-Original variables are unchanged; every address variable expands to the
-complete `E(body)` occurring at that address in `target`.
--/
-def restoreEBlockSubstitution
+/-- Direct constant expansion is exactly constant abstraction followed by
+ordinary heterogeneous variable substitution. -/
+theorem replaceBasisConstants_eq_substitute
+    {Basis : Type u} {Const : Type v} {Hom : Type w}
+    (replacement : Basis → Term Const (Fin 0) Hom)
+    (term : Term Basis (Fin 0) Hom) :
+    replaceBasisConstants replacement term =
+      Term.substitute replacement (abstractBasisConstants term) := by
+  induction term with
+  | var impossible => exact impossible.elim0
+  | _ => simp_all [replaceBasisConstants, abstractBasisConstants]
+
+/-- Replacing basis constants by arbitrary ground terms preserves every
+ACUIhE derivation. -/
+theorem replaceBasisConstants_respectsDerives
+    {Basis : Type u} {Const : Type v} {Hom : Type w}
+    (replacement : Basis → Term Const (Fin 0) Hom)
+    {left right : Term Basis (Fin 0) Hom}
+    (derivation : Derives left right) :
+    Derives (replaceBasisConstants replacement left)
+      (replaceBasisConstants replacement right) := by
+  induction derivation with
+  | refl term => exact Derives.refl _
+  | symm derivation inductionHypothesis =>
+      exact Derives.symm inductionHypothesis
+  | trans leftDerivation rightDerivation leftHypothesis rightHypothesis =>
+      exact Derives.trans leftHypothesis rightHypothesis
+  | add_congr leftDerivation rightDerivation leftHypothesis rightHypothesis =>
+      exact Derives.add_congr leftHypothesis rightHypothesis
+  | hom_congr name derivation inductionHypothesis =>
+      exact Derives.hom_congr name inductionHypothesis
+  | free_congr derivation inductionHypothesis =>
+      exact Derives.free_congr inductionHypothesis
+  | free_inj derivation inductionHypothesis =>
+      exact Derives.free_inj inductionHypothesis
+  | add_assoc first middle last => exact Derives.add_assoc _ _ _
+  | add_comm first second => exact Derives.add_comm _ _
+  | add_zero term => exact Derives.add_zero _
+  | add_idem term => exact Derives.add_idem _
+  | hom_add name first second => exact Derives.hom_add name _ _
+  | hom_zero name => exact Derives.hom_zero name
+  | free_zero => exact Derives.free_zero
+
+/-- Replacing constants before or after canonical ACUIhE normalization gives
+the same target normal form. -/
+theorem normalize_replaceBasisConstants_reify_normalize
+    {Basis : Type u} {Const : Type v} {Hom : Type w}
+    [Encodable Basis] [Encodable Const] [Encodable Hom]
+    (replacement : Basis → Term Const (Fin 0) Hom)
+    (term : Term Basis (Fin 0) Hom) :
+    normalize (replaceBasisConstants replacement term) =
+      normalize
+        (replaceBasisConstants replacement (reify (normalize term))) := by
+  apply normalize_eq_of_derives
+  exact replaceBasisConstants_respectsDerives replacement
+    (derives_reify_normalize term)
+
+/-- Prefix an entire homomorphism path to a normal form. -/
+def prefixHomPath
     {Const : Type u} {Var : Type v} {Hom : Type w}
     [Encodable Const] [Encodable Var] [Encodable Hom]
-    (target : NormalForm Const Var Hom) :
-    EBlockVariable Var → Term Const Var Hom
-  | .inl name => .var name
-  | .inr address =>
-      match termAtEBlockAddress address (reify target) with
-      | some (.free body) => .free body
-      | _ => .zero
+    (path : List Hom) (target : NormalForm Const Var Hom) :
+    NormalForm Const Var Hom :=
+  path.foldr prefixHom target
 
-private theorem substitute_reverseSubstituteEBlocksTerm
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    (root term : Term Const Var Hom) (address : EBlockAddress)
-    (located : termAtEBlockAddress address root = some term) :
-    Term.substitute
-        (fun sourceVariable =>
-          match sourceVariable with
-          | .inl name => .var name
-          | .inr blockAddress =>
-              match termAtEBlockAddress blockAddress root with
-              | some (.free body) => .free body
-              | _ => .zero)
-        (reverseSubstituteEBlocksTerm address term) =
-      term := by
-  induction term generalizing address with
-  | zero => rfl
-  | const name => rfl
-  | var name => rfl
-  | add left right leftHypothesis rightHypothesis =>
-      simp only [reverseSubstituteEBlocksTerm, Term.substitute_add]
-      rw [leftHypothesis (address ++ [0]),
-        rightHypothesis (address ++ [1])]
-      · rw [termAtEBlockAddress_append, located]
-        rfl
-      · rw [termAtEBlockAddress_append, located]
-        rfl
-  | hom name body inductionHypothesis =>
-      simp only [reverseSubstituteEBlocksTerm, Term.substitute_hom]
-      rw [inductionHypothesis (address ++ [2])]
-      rw [termAtEBlockAddress_append, located]
+/-- Evaluate a ground normal form after interpreting each of its constants by
+an arbitrary ground term. -/
+def expandNormalForm
+    {Basis Const Hom : Type u}
+    [Encodable Basis] [Encodable Const] [Encodable Hom]
+    (replacement : Basis → Term Const (Fin 0) Hom)
+    (target : NormalForm Basis (Fin 0) Hom) :
+    NormalForm Const (Fin 0) Hom :=
+  target.fold ∅ (· ∪ ·)
+    (fun path basis => prefixHomPath path (normalize (replacement basis)))
+    (fun _ impossible => impossible.elim0)
+    (fun path body => prefixHomPath path (wrapE body))
+
+theorem expandNormalForm_union
+    {Basis Const Hom : Type u}
+    [Encodable Basis] [Encodable Const] [Encodable Hom]
+    (replacement : Basis → Term Const (Fin 0) Hom)
+    (first second : NormalForm Basis (Fin 0) Hom) :
+    expandNormalForm replacement (first ∪ second) =
+      expandNormalForm replacement first ∪
+        expandNormalForm replacement second := by
+  unfold expandNormalForm
+  apply NormalForm.fold_union
+  exact normalUnionEmpty
+
+theorem expandNormalForm_prefixHom
+    {Basis Const Hom : Type u}
+    [Encodable Basis] [Encodable Const] [Encodable Hom]
+    (replacement : Basis → Term Const (Fin 0) Hom)
+    (name : Hom) (target : NormalForm Basis (Fin 0) Hom) :
+    expandNormalForm replacement (prefixHom name target) =
+      prefixHom name (expandNormalForm replacement target) := by
+  unfold expandNormalForm
+  apply NormalForm.fold_prefixHom
+      (zeroRight := normalUnionEmpty)
+      (mapResult := prefixHom name)
+  · exact prefixHom_empty name
+  · exact prefixHom_union name
+  · intro path basis
+    rfl
+  · intro path impossible
+    exact impossible.elim0
+  · intro path body
+    rfl
+
+theorem expandNormalForm_prefixHomPath
+    {Basis Const Hom : Type u}
+    [Encodable Basis] [Encodable Const] [Encodable Hom]
+    (replacement : Basis → Term Const (Fin 0) Hom)
+    (path : List Hom) (target : NormalForm Basis (Fin 0) Hom) :
+    expandNormalForm replacement (prefixHomPath path target) =
+      prefixHomPath path (expandNormalForm replacement target) := by
+  induction path with
+  | nil => rfl
+  | cons name path inductionHypothesis =>
+      change expandNormalForm replacement
+          (prefixHom name (prefixHomPath path target)) = _
+      rw [expandNormalForm_prefixHom, inductionHypothesis]
       rfl
-  | free body inductionHypothesis =>
-      simp only [reverseSubstituteEBlocksTerm, Term.substitute_var]
-      rw [located]
-
-/--
-Replace every complete `E(body)` in `target` by an ordinary variable and
-return the single substitution that restores all original E-blocks.
-
-Nested E-blocks are retained inside the restoring value for their outermost
-block; the transformed normal form itself contains no `E` operator.
--/
-def reverseSubstituteEBlocks
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (target : NormalForm Const Var Hom) :
-    EBlockReverseSubstitution Const Var Hom where
-  normalForm :=
-    normalize (reverseSubstituteEBlocksTerm [] (reify target))
-  substitution := restoreEBlockSubstitution target
-  acuih :=
-    isACUIh_normalize _
-      (reverseSubstituteEBlocksTerm_isACUIh [] (reify target))
 
 @[simp]
-theorem reverseSubstituteEBlocks_empty_normalForm
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom] :
-    (reverseSubstituteEBlocks
-      (∅ : NormalForm Const Var Hom)).normalForm = ∅ := by
-  unfold reverseSubstituteEBlocks
-  dsimp only
-  have reifyEmpty :
-      reify (∅ : NormalForm Const Var Hom) = .zero := by
-    simp [reify]
-  rw [reifyEmpty]
-  rfl
+theorem expandNormalForm_empty
+    {Basis Const Hom : Type u}
+    [Encodable Basis] [Encodable Const] [Encodable Hom]
+    (replacement : Basis → Term Const (Fin 0) Hom) :
+    expandNormalForm replacement (∅ : NormalForm Basis (Fin 0) Hom) = ∅ := by
+  simp [expandNormalForm]
 
 @[simp]
-theorem reverseSubstituteEBlocks_constantForm_normalForm
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (name : Const) :
-    (reverseSubstituteEBlocks
-      (constantForm (Var := Var) (Hom := Hom) name)).normalForm =
-        constantForm (Var := EBlockVariable Var) (Hom := Hom) name := by
-  unfold reverseSubstituteEBlocks
-  dsimp only
-  have reifyConstant :
-      reify (constantForm (Var := Var) (Hom := Hom) name) =
-        .add (.const name) .zero := by
-    unfold reify constantForm
-    rw [NormalForm.fold_singleton]
-    rfl
-  rw [reifyConstant]
-  simp only [reverseSubstituteEBlocksTerm, normalize_add, normalize_const,
-    normalize_zero]
-  exact ACUIhE.add_zero (Hom := Hom) _
+theorem expandNormalForm_singleton_constant
+    {Basis Const Hom : Type u}
+    [Encodable Basis] [Encodable Const] [Encodable Hom]
+    (replacement : Basis → Term Const (Fin 0) Hom)
+    (path : List Hom) (basis : Basis) :
+    expandNormalForm replacement
+        ({(path, .constant basis)} : NormalForm Basis (Fin 0) Hom) =
+      prefixHomPath path (normalize (replacement basis)) := by
+  unfold expandNormalForm
+  rw [NormalForm.fold_singleton]
+  exact normalUnionEmpty _
 
-@[simp]
-theorem reverseSubstituteEBlocks_variableForm_normalForm
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (name : Var) :
-    (reverseSubstituteEBlocks
-      (variableForm (Const := Const) (Hom := Hom) name)).normalForm =
-        variableForm (Const := Const) (Hom := Hom) (.inl name) := by
-  unfold reverseSubstituteEBlocks
-  dsimp only
-  have reifyVariable :
-      reify (variableForm (Const := Const) (Hom := Hom) name) =
-        .add (.var name) .zero := by
-    unfold reify variableForm
-    rw [NormalForm.fold_singleton]
-    rfl
-  rw [reifyVariable]
-  simp only [reverseSubstituteEBlocksTerm, normalize_add, normalize_var,
-    normalize_zero]
-  exact ACUIhE.add_zero (Hom := Hom) _
+theorem normalize_replaceBasisConstants_reifyPath
+    {Basis Const Hom : Type u}
+    [Encodable Basis] [Encodable Const] [Encodable Hom]
+    (replacement : Basis → Term Const (Fin 0) Hom)
+    (path : List Hom) (term : Term Basis (Fin 0) Hom) :
+    normalize (replaceBasisConstants replacement (reifyPath path term)) =
+      prefixHomPath path
+        (normalize (replaceBasisConstants replacement term)) := by
+  induction path with
+  | nil => rfl
+  | cons name path inductionHypothesis =>
+      simp only [reifyPath, List.foldr_cons, replaceBasisConstants,
+        normalize_hom, prefixHomPath]
+      exact congrArg (prefixHom name) inductionHypothesis
 
-@[simp]
-theorem reverseSubstituteEBlocks_wrapE_normalForm
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (body : NormalForm Const Var Hom) (bodyNonempty : body ≠ ∅) :
-    (reverseSubstituteEBlocks (wrapE body)).normalForm =
-      variableForm
-        (Const := Const) (Hom := Hom)
-        (.inr ([0] : EBlockAddress)) := by
-  unfold reverseSubstituteEBlocks
-  dsimp only
-  have reifyWrapped :
-      reify (wrapE body) = .add (.free (reify body)) .zero := by
-    rw [wrapE_of_ne_empty bodyNonempty]
-    unfold reify
-    rw [NormalForm.fold_singleton]
-    rfl
-  rw [reifyWrapped]
-  simp only [reverseSubstituteEBlocksTerm, normalize_add, normalize_var,
-    normalize_zero]
-  exact ACUIhE.add_zero (Hom := Hom) _
+/-- The fold evaluator is exactly normalized term-level replacement. -/
+theorem expandNormalForm_eq_normalize_replaceBasisConstants
+    {Basis Const Hom : Type u}
+    [Encodable Basis] [Encodable Const] [Encodable Hom]
+    (replacement : Basis → Term Const (Fin 0) Hom)
+    (target : NormalForm Basis (Fin 0) Hom) :
+    expandNormalForm replacement target =
+      normalize (replaceBasisConstants replacement (reify target)) := by
+  unfold expandNormalForm reify
+  symm
+  apply NormalForm.fold_hom
+    (fun term : Term Basis (Fin 0) Hom =>
+      normalize (replaceBasisConstants replacement term))
+    (.zero : Term Basis (Fin 0) Hom) (.add)
+    (fun path basis => reifyPath path (.const basis))
+    (fun path impossible => reifyPath path (.var impossible))
+    (fun path body => reifyPath path (.free body))
+    (∅ : NormalForm Const (Fin 0) Hom) (· ∪ ·)
+    (fun path basis => prefixHomPath path (normalize (replacement basis)))
+    (fun _ impossible => impossible.elim0)
+    (fun path body => prefixHomPath path (wrapE body))
+    (by rfl)
+    (by intro first second; simp [replaceBasisConstants])
+    (by
+      intro path basis
+      rw [normalize_replaceBasisConstants_reifyPath]
+      rfl)
+    (by intro path impossible; exact impossible.elim0)
+    (by
+      intro path body
+      rw [normalize_replaceBasisConstants_reifyPath]
+      rfl)
+    target
 
-/-- Reverse substitution always produces an ACUIh normal form. -/
-theorem reverseSubstituteEBlocks_isACUIh
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (target : NormalForm Const Var Hom) :
-    isACUIh (reverseSubstituteEBlocks target).normalForm = true :=
-  (reverseSubstituteEBlocks target).acuih
+theorem expandNormalForm_canonicalize
+    {Basis Const Hom : Type u}
+    [Encodable Basis] [Encodable Const] [Encodable Hom]
+    (replacement : Basis → Term Const (Fin 0) Hom)
+    (target : NormalForm Basis (Fin 0) Hom) :
+    expandNormalForm replacement (canonicalize target) =
+      expandNormalForm replacement target := by
+  rw [expandNormalForm_eq_normalize_replaceBasisConstants,
+    expandNormalForm_eq_normalize_replaceBasisConstants]
+  exact (normalize_replaceBasisConstants_reify_normalize
+    replacement (reify target)).symm
 
-/--
-Applying the accompanying substitution recovers the canonicalization of the
-original target.
--/
-theorem reverseSubstituteEBlocks_roundtrip
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (target : NormalForm Const Var Hom) :
-    (reverseSubstituteEBlocks target).restore = canonicalize target := by
-  unfold EBlockReverseSubstitution.restore reverseSubstituteEBlocks
-  dsimp only
-  rw [substituteNormalForm_normalize]
-  unfold restoreEBlockSubstitution
-  rw [substitute_reverseSubstituteEBlocksTerm
-    (reify target) (reify target) []]
-  · rfl
-  · rfl
+/-- Normal-form expansion is also ordinary substitution after abstracting
+the source constants into variables of the source basis type. -/
+theorem expandNormalForm_eq_substituteNormalForm
+    {Basis Const Hom : Type u}
+    [Encodable Basis] [Encodable Const] [Encodable Hom]
+    (replacement : Basis → Term Const (Fin 0) Hom)
+    (target : NormalForm Basis (Fin 0) Hom) :
+    expandNormalForm replacement target =
+      substituteNormalForm replacement
+        (normalize (abstractBasisConstants (reify target))) := by
+  rw [substituteNormalForm_normalize,
+    ← replaceBasisConstants_eq_substitute,
+    expandNormalForm_eq_normalize_replaceBasisConstants]
 
-/-- For a canonical target, the accompanying substitution recovers the target
-itself. -/
-theorem reverseSubstituteEBlocks_roundtrip_of_canonical
-    {Const : Type u} {Var : Type v} {Hom : Type w}
-    [Encodable Const] [Encodable Var] [Encodable Hom]
-    (target : NormalForm Const Var Hom) (canonical : IsCanonical target) :
-    (reverseSubstituteEBlocks target).restore = target := by
-  rw [reverseSubstituteEBlocks_roundtrip target]
-  exact canonical
-
-end Solver
-
-end ACUIHE
+end ACUIHE.Solver

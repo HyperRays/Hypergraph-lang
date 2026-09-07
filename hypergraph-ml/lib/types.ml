@@ -9,6 +9,7 @@ type t =
   | Variable of string
   | Sum of t list
   | Set of t
+  | List of t
   | Option of t
   | Edge of edge_kind * t * t * t
   | Named of string * (string * t) list
@@ -22,7 +23,8 @@ let rec equal left right =
   | Parameter left, Parameter right | Variable left, Variable right -> left = right
   | Sum left, Sum right ->
       List.length left = List.length right && List.for_all2 equal left right
-  | Set left, Set right | Option left, Option right -> equal left right
+  | Set left, Set right | List left, List right | Option left, Option right ->
+      equal left right
   | Edge (left_kind, left_tail, left_head, left_payload),
     Edge (right_kind, right_tail, right_head, right_payload) ->
       left_kind = right_kind
@@ -80,6 +82,7 @@ let rec substitute parameters ty =
   | Parameter name -> Option.value (List.assoc_opt name parameters) ~default:ty
   | Sum values -> sum (List.map (substitute parameters) values)
   | Set element -> Set (substitute parameters element)
+  | List element -> List (substitute parameters element)
   | Option payload -> Option (substitute parameters payload)
   | Edge (kind, tail, head, payload) ->
       Edge
@@ -95,7 +98,7 @@ let rec substitute parameters ty =
 let rec has_variable = function
   | Variable _ -> true
   | Sum values -> List.exists has_variable values
-  | Set element | Option element -> has_variable element
+  | Set element | List element | Option element -> has_variable element
   | Edge (_, tail, head, payload) ->
       has_variable tail || has_variable head || has_variable payload
   | Named (_, members) -> List.exists (fun (_, ty) -> has_variable ty) members
@@ -121,7 +124,7 @@ let rec contains_graph ty =
   ||
   match ty with
   | Sum values -> List.exists contains_graph values
-  | Set element | Option element -> contains_graph element
+  | Set element | List element | Option element -> contains_graph element
   | Edge (_, tail, head, payload) ->
       contains_graph tail || contains_graph head || contains_graph payload
   | Named (_, members) -> List.exists (fun (_, ty) -> contains_graph ty) members
@@ -133,6 +136,7 @@ let rec equality_projection ty =
   | Opaque (_, marker) -> Named ("$OpaqueEq", [ ("marker", marker) ])
   | Sum values -> sum (List.map equality_projection values)
   | Set element -> Set (equality_projection element)
+  | List element -> List (equality_projection element)
   | Option payload -> Option (equality_projection payload)
   | Edge (kind, tail, head, payload) ->
       Edge
@@ -149,6 +153,7 @@ let rec protect_graphs marker ty =
     match ty with
     | Sum values -> sum (List.map (protect_graphs marker) values)
     | Set element -> Set (protect_graphs marker element)
+    | List element -> List (protect_graphs marker element)
     | Option payload -> Option (protect_graphs marker payload)
     | Edge (kind, tail, head, payload) ->
         Edge
@@ -185,6 +190,10 @@ let rec to_solver = function
       Solver.sum
         [ Solver.constant "builtin:Set";
           Solver.hom "set:element" (to_solver element) ]
+  | List element ->
+      Solver.sum
+        [ Solver.constant "builtin:List";
+          Solver.hom "list:element" (to_solver element) ]
   | Option payload ->
       named_term "Option"
         [ ("Some:0", to_solver payload); ("None", Solver.bottom) ]
@@ -219,7 +228,8 @@ let rec below left right =
              if List.exists (fun choice -> below value choice = Yes) choices then Yes else No)
         |> combine_relations
     | Sum values, _ -> List.map (fun value -> below value right) values |> combine_relations
-    | Set left, Set right | Option left, Option right -> below left right
+    | Set left, Set right | List left, List right | Option left, Option right ->
+        below left right
     | Edge (left_kind, left_tail, left_head, left_payload),
       Edge (right_kind, right_tail, right_head, right_payload)
       when left_kind = right_kind ->
@@ -245,6 +255,7 @@ let rec pretty = function
   | Parameter name | Variable name -> name
   | Sum values -> String.concat " + " (List.map pretty values)
   | Set element -> "Set<" ^ pretty element ^ ">"
+  | List element -> "List<" ^ pretty element ^ ">"
   | Option payload -> "Option<" ^ pretty payload ^ ">"
   | Edge (kind, tail, head, payload) ->
       let name = match kind with Directed -> "Edge" | Undirected -> "UndirectedEdge" in

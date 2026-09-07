@@ -28,8 +28,12 @@ class Result:
     status: str
     outcome: str = ""
     elapsed_ms: float | None = None
+    e_ms: float | None = None
+    acuih_ms: float | None = None
     wall_ms: float | None = None
     repetitions: int = 1
+    configurations: float | None = None
+    valid_configurations: float | None = None
     nodes: int | None = None
     additions: int | None = None
     homs: int | None = None
@@ -114,6 +118,21 @@ def run_case(
             repetitions=repetitions,
             error=f"unparseable output: {completed.stdout.strip()}",
         )
+    elapsed_ms = (
+        float(fields["elapsed_ns"]) / 1_000_000.0
+        if "elapsed_ns" in fields
+        else float(fields["elapsed_ms"])
+    )
+    e_ms = (
+        float(fields["e_ns"]) / 1_000_000.0 / repetitions
+        if "e_ns" in fields
+        else None
+    )
+    acuih_ms = (
+        float(fields["acuih_ns"]) / 1_000_000.0 / repetitions
+        if "acuih_ns" in fields
+        else None
+    )
     return Result(
         family=family,
         depth=depth,
@@ -121,9 +140,19 @@ def run_case(
         solver=solver,
         status="ok",
         outcome=fields["outcome"],
-        elapsed_ms=float(fields["elapsed_ms"]) / repetitions,
+        elapsed_ms=elapsed_ms / repetitions,
+        e_ms=e_ms,
+        acuih_ms=acuih_ms,
         wall_ms=wall_ms / repetitions,
         repetitions=repetitions,
+        configurations=(
+            float(fields["configurations"]) / repetitions
+            if "configurations" in fields else None
+        ),
+        valid_configurations=(
+            float(fields["valid_configurations"]) / repetitions
+            if "valid_configurations" in fields else None
+        ),
         nodes=int(fields["nodes"]),
         additions=int(fields["additions"]),
         homs=int(fields["homs"]),
@@ -188,7 +217,7 @@ def summarize(results: list[Result], timeout_seconds: float) -> None:
     print(f"  generated cases: {len(cases)}")
     print(f"  completed by both: {len(paired)}")
     print(f"  classification mismatches: {len(mismatches)}")
-    for solver in ("original", "optimized", "shortcut"):
+    for solver in ("original", "optimized", "shortcut", "filo"):
         statuses = Counter(r.status for r in results if r.solver == solver)
         print(
             f"  {solver:9s}: ok={statuses['ok']} "
@@ -338,6 +367,83 @@ def summarize(results: list[Result], timeout_seconds: float) -> None:
             f"two-sided sign-test p={sign_test_two_sided(wins, losses):.4g}"
         )
 
+    filo_pairs = []
+    filo_mismatches = []
+    for family, depth, seed in cases:
+        optimized = indexed[(family, depth, seed, "optimized")]
+        filo = indexed[(family, depth, seed, "filo")]
+        if optimized.status == "ok" and filo.status == "ok":
+            filo_pairs.append((optimized, filo))
+            if optimized.outcome != filo.outcome:
+                filo_mismatches.append((optimized, filo))
+    filo_agreed = [
+        pair for pair in filo_pairs if pair[0].outcome == pair[1].outcome
+    ]
+    print("\nOptimized versus FILO")
+    print(f"  completed by both: {len(filo_pairs)}")
+    print(f"  classification mismatches: {len(filo_mismatches)}")
+    if filo_agreed:
+        optimized_times = [
+            max(old.elapsed_ms or 0.0, 0.5) for old, _ in filo_agreed
+        ]
+        filo_times = [
+            max(new.elapsed_ms or 0.0, 0.5) for _, new in filo_agreed
+        ]
+        ratios = [old / new for old, new in zip(optimized_times, filo_times)]
+        wins = sum(new < old for old, new in zip(optimized_times, filo_times))
+        losses = sum(new > old for old, new in zip(optimized_times, filo_times))
+        ties = len(filo_agreed) - wins - losses
+        print(
+            "  optimized median/p90/p95: "
+            f"{fmt(percentile(optimized_times, .5))} / "
+            f"{fmt(percentile(optimized_times, .9))} / "
+            f"{fmt(percentile(optimized_times, .95))}"
+        )
+        print(
+            "  FILO      median/p90/p95: "
+            f"{fmt(percentile(filo_times, .5))} / "
+            f"{fmt(percentile(filo_times, .9))} / "
+            f"{fmt(percentile(filo_times, .95))}"
+        )
+        print(f"  FILO geometric-mean speedup: {geometric_mean(ratios):.2f}x")
+        print(
+            f"  FILO wins/losses/ties: {wins}/{losses}/{ties}; "
+            f"two-sided sign-test p={sign_test_two_sided(wins, losses):.4g}"
+        )
+
+    profiled_filo = [
+        result for result in results
+        if result.solver == "filo" and result.status == "ok"
+        and result.e_ms is not None and result.acuih_ms is not None
+    ]
+    if profiled_filo:
+        print("\nFILO phase attribution")
+        print("  group       cases       E ms/share       ACUIh ms/share  configs/valid")
+        groups = [("overall", profiled_filo)]
+        groups.extend(
+            (f"{family}/d{depth}", [
+                result for result in profiled_filo
+                if result.family == family and result.depth == depth
+            ])
+            for family, depth in sorted({
+                (result.family, result.depth) for result in profiled_filo
+            })
+        )
+        for label, group in groups:
+            e_ms = sum(result.e_ms or 0.0 for result in group)
+            acuih_ms = sum(result.acuih_ms or 0.0 for result in group)
+            total_ms = e_ms + acuih_ms
+            e_share = 100.0 * e_ms / total_ms if total_ms else 0.0
+            acuih_share = 100.0 * acuih_ms / total_ms if total_ms else 0.0
+            configurations = sum(result.configurations or 0.0 for result in group)
+            valid = sum(result.valid_configurations or 0.0 for result in group)
+            print(
+                f"  {label:10s} {len(group):5d} "
+                f"{e_ms:9.2f}/{e_share:5.1f}% "
+                f"{acuih_ms:11.2f}/{acuih_share:5.1f}% "
+                f"{configurations:g}/{valid:g}"
+            )
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -374,14 +480,14 @@ def main() -> int:
         for _ in range(args.samples)
     ]
     results: list[Result] = []
-    total_runs = len(cases) * 3
+    total_runs = len(cases) * 4
     completed_runs = 0
     print(
         f"Running {len(cases)} matched cases ({total_runs} processes), "
         f"timeout={args.timeout:g}s"
     )
     for case_index, (family, depth, seed) in enumerate(cases):
-        solvers = ("original", "optimized", "shortcut")
+        solvers = ("original", "optimized", "shortcut", "filo")
         rotation = case_index % len(solvers)
         solvers = solvers[rotation:] + solvers[:rotation]
         for solver in solvers:

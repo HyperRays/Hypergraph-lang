@@ -1,5 +1,6 @@
 import ACUIHE.Solver.Search
 import ACUIHE.Optimized
+import ACUIHE.Optimized.FILO
 
 /-!
 A deterministic grammar-aware fuzz worker for paired solver benchmarks.
@@ -12,6 +13,8 @@ per-case timeout without weakening either solver.
 namespace ACUIHE.Benchmarks.Fuzz
 
 open ACUIHE.Solver
+open ACUIHE.Solver.Linear
+open ACUIHE.Solver.Search
 
 inductive Constant where
   | a | b
@@ -43,6 +46,9 @@ instance : FinEnum Hom :=
     intro value
     cases value with
     | h => simp)
+
+local instance fuzzBoolFinEnum : FinEnum Bool :=
+  FinEnum.ofList [false, true] (by intro value; cases value <;> simp)
 
 instance : Encodable Constant :=
   Encodable.ofEquiv (Fin (FinEnum.card Constant))
@@ -195,6 +201,7 @@ inductive SolverKind where
   | original
   | optimized
   | shortcut
+  | filo
 
 namespace SolverKind
 
@@ -202,29 +209,120 @@ def parse? : String → Option SolverKind
   | "original" => some .original
   | "optimized" => some .optimized
   | "shortcut" => some .shortcut
+  | "filo" => some .filo
   | _ => none
 
 end SolverKind
 
+/-! The profiled FILO path preserves the production search order and solver
+boundary. Time spent inside `solveColumnFamilyCached?` is attributed to ACUIh;
+all remaining solver time (configuration enumeration/validation,
+reconstruction, checking, and profiling overhead) is attributed to E. -/
+
+structure FILOProfile where
+  satisfiable : Bool
+  acuihNanos : Nat
+  configurations : Nat
+  validConfigurations : Nat
+
+def runFILOConfigurationsProfiled
+    (left right : NormalForm Constant Variable Hom) :
+    List (EConfiguration left right) →
+      ACUIHE.Optimized.FILO.SystemCache (ECombinationRow left right) Variable Hom →
+      Nat → Nat → Nat → IO FILOProfile
+  | [], _, acuihNanos, configurations, validConfigurations =>
+      pure
+        { satisfiable := false
+          acuihNanos := acuihNanos
+          configurations := configurations
+          validConfigurations := validConfigurations }
+  | configuration :: rest, cache, acuihNanos, configurations,
+      validConfigurations => do
+      let configurations := configurations + 1
+      if configuration.valid = true then
+        let validConfigurations := validConfigurations + 1
+        let acuihStart ← IO.monoNanosNow
+        let solved := ACUIHE.Optimized.FILO.solveColumnFamilyCached?
+          (eCombinationColumnRepresentations left right configuration) cache
+        match solved.1 with
+        | none =>
+            let acuihEnd ← IO.monoNanosNow
+            runFILOConfigurationsProfiled left right rest solved.2
+              (acuihNanos + (acuihEnd - acuihStart)) configurations
+              validConfigurations
+        | some values =>
+            let acuihEnd ← IO.monoNanosNow
+            let acuihNanos := acuihNanos + (acuihEnd - acuihStart)
+            let assignment :=
+              decodeECombinationAssignment left right configuration values
+            if checkGroundInequality
+                (applyGroundAssignment assignment left)
+                (applyGroundAssignment assignment right) then
+              pure
+                { satisfiable := true
+                  acuihNanos := acuihNanos
+                  configurations := configurations
+                  validConfigurations := validConfigurations }
+            else
+              runFILOConfigurationsProfiled left right rest solved.2 acuihNanos
+                configurations validConfigurations
+      else
+        runFILOConfigurationsProfiled left right rest cache acuihNanos
+          configurations validConfigurations
+
+def runFILOProfiled (left right : NormalForm Constant Variable Hom) :
+    IO FILOProfile :=
+  runFILOConfigurationsProfiled left right
+    (FinEnum.toList (EConfiguration left right)) [] 0 0 0
+
+structure SolverRun where
+  satisfiable : Bool
+  elapsedNanos : Nat
+  eNanos : Nat
+  acuihNanos : Nat
+  configurations : Nat
+  validConfigurations : Nat
+
 def runSolver (solver : SolverKind) (problem : Problem)
-    (shallowBound repetitions : Nat) : IO (Bool × Nat) := do
+    (shallowBound repetitions : Nat) : IO SolverRun := do
   let left := normalize problem.left
   let right := normalize problem.right
-  let start ← IO.monoMsNow
+  let start ← IO.monoNanosNow
   let mut satisfiable := false
+  let mut acuihNanos := 0
+  let mut configurations := 0
+  let mut validConfigurations := 0
   for _ in List.range repetitions do
-    satisfiable :=
-      match solver with
-      | .original =>
+    match solver with
+    | .original =>
+        satisfiable :=
           (ACUIHE.Solver.Search.solveACUIhE? left right).isSome
-      | .optimized =>
+    | .optimized =>
+        satisfiable :=
           (ACUIHE.Optimized.Optimized.solveACUIhE?
             left right shallowBound).isSome
-      | .shortcut =>
+    | .shortcut =>
+        satisfiable :=
           (ACUIHE.Optimized.Shortcut.solveACUIhE?
             left right).isSome
-  let elapsed ← IO.monoMsNow
-  pure (satisfiable, elapsed - start)
+    | .filo =>
+        let profile ← runFILOProfiled left right
+        satisfiable := profile.satisfiable
+        acuihNanos := acuihNanos + profile.acuihNanos
+        configurations := configurations + profile.configurations
+        validConfigurations :=
+          validConfigurations + profile.validConfigurations
+  let elapsed := (← IO.monoNanosNow) - start
+  let eNanos := match solver with
+    | .filo => elapsed - acuihNanos
+    | _ => 0
+  pure
+    { satisfiable := satisfiable
+      elapsedNanos := elapsed
+      eNanos := eNanos
+      acuihNanos := acuihNanos
+      configurations := configurations
+      validConfigurations := validConfigurations }
 
 def parseNatArgument (name value : String) : IO Nat :=
   match value.toNat? with
@@ -232,7 +330,7 @@ def parseNatArgument (name value : String) : IO Nat :=
   | none => throw <| IO.userError s!"invalid {name}: {value}"
 
 def usage : String :=
-  "usage: acuihe-fuzz (original|optimized|shortcut) (random|sat|cyclic) SEED DEPTH SHALLOW_BOUND REPETITIONS"
+  "usage: acuihe-fuzz (original|optimized|shortcut|filo) (random|sat|cyclic) SEED DEPTH SHALLOW_BOUND REPETITIONS"
 
 def main (arguments : List String) : IO Unit := do
   match arguments with
@@ -252,11 +350,15 @@ def main (arguments : List String) : IO Unit := do
         throw <| IO.userError "repetitions must be positive"
       let problem := generateProblem family depth seed
       let statistics := problemStatistics problem
-      let (satisfiable, elapsed) ←
-        runSolver solver problem shallowBound repetitions
+      let result ← runSolver solver problem shallowBound repetitions
       IO.println <|
-        s!"outcome={if satisfiable then "sat" else "unsat"} " ++
-        s!"elapsed_ms={elapsed} repetitions={repetitions} " ++
+        s!"outcome={if result.satisfiable then "sat" else "unsat"} " ++
+        s!"elapsed_ms={result.elapsedNanos / 1000000} " ++
+        s!"elapsed_ns={result.elapsedNanos} " ++
+        s!"e_ns={result.eNanos} acuih_ns={result.acuihNanos} " ++
+        s!"configurations={result.configurations} " ++
+        s!"valid_configurations={result.validConfigurations} " ++
+        s!"repetitions={repetitions} " ++
         s!"nodes={statistics.nodes} additions={statistics.additions} " ++
         s!"homs={statistics.homomorphisms} es={statistics.eOperators} " ++
         s!"variables={statistics.variableNodes} constants={statistics.constantNodes} " ++

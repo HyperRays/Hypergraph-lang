@@ -1,0 +1,5 @@
+// Expected error: found Int, expected Int + String
+// A sum is not a union type for an individual value.
+
+let impossible: Int + String = 1
+

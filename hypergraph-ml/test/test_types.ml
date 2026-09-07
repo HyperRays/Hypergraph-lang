@@ -20,9 +20,16 @@ let () =
   let edge = Edge (Directed, Int, String, Bottom) in
   let undirected = Edge (Undirected, Int, String, Bottom) in
   check "graph shape" (is_graph (Set (sum [ edge; undirected ])));
+  check "list is not a graph" (not (is_graph (List (sum [ edge; undirected ]))));
+  check "list type equality"
+    (equal (List (sum [ Int; String ])) (List (sum [ Int; String ])));
+  check "list and set types are distinct" (not (equal (List Int) (Set Int)));
   let marker = Named ("marker", []) in
   let left = equality_projection (Opaque (Set edge, marker)) in
   let right = equality_projection (Opaque (Set undirected, marker)) in
   check "opaque equality ignores hidden type" (equal left right);
   let encoded = Format.asprintf "%a" Solver.pp_term (to_solver edge) in
-  check "named types use E" (String.length encoded > 2 && encoded.[0] = 'E')
+  check "named types use E" (String.length encoded > 2 && encoded.[0] = 'E');
+  let encoded_list = Format.asprintf "%a" Solver.pp_term (to_solver (List Int)) in
+  check "list has distinct solver encoding"
+    (String.equal encoded_list "builtin:List + list:element(builtin:Int)")

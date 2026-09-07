@@ -23,6 +23,7 @@ and expr_node =
   | String of string
   | Ref of string
   | Set of expr list
+  | List of expr list
   | SetOp of setop * expr list
   | Edge of expr * expr * expr option
   | UndirectedEdge of expr * expr * expr option

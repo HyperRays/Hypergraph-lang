@@ -27,6 +27,8 @@ results, assignment rechecking, raw replacement rules, and
 
 - Scalars are primitive ACUIhE constants.
 - `Set<T>` is `C_Set + S_element(T)`, so it distributes over sums.
+- `List<T>` is `C_List + S_list_element(T)`. Lists distribute over sums while
+  preserving runtime order and duplicate values.
 - Every struct and enum is `E(C_Name + Σ S_member(member_type))`.
 - `Option<T>`, `Edge<T,H,P>`, and `UndirectedEdge<T,H,P>` are predeclared named
   declarations. Edge sides are `Set<T>`/`Set<H>` and payload is `Option<P>`.
