@@ -1,0 +1,3 @@
+{"done": 25, "total": 48, "elapsed_s": 0.7, "counts": {"ok": 25}}
+{"done": 48, "total": 48, "elapsed_s": 1.3, "counts": {"ok": 48}}
+Saved 48 measurements to /Users/soham/Documents/programming/ACUIh/Hypergraph-ml/bench/forced-matching-20260912/structured-final

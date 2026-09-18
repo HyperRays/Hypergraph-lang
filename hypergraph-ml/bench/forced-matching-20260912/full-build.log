@@ -1,0 +1,11 @@
+⚠ [1158/1384] Replayed ACUIhE.Solver.Search
+warning: ACUIhE/Solver/Search.lean:182:0: automatically included section variable(s) unused in theorem `ACUIhE.Solver.Prepared.incompatible_ready`:
+  [DecidableEq Var]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq Var] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+✔ [2320/2324] Built ACUIhE (4.5s)
+✔ [2322/2324] Built Main (991ms)
+✔ [2324/2324] Built acuihe:exe (1.0s)
+Build completed successfully (2324 jobs).

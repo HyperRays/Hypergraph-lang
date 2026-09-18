@@ -1,0 +1,50 @@
+✔ [2286/2328] Built ACUIhE.FILO.Deferred (2.0s)
+✔ [2287/2328] Built ACUIhE.Solver.Forced (3.0s)
+✔ [2288/2328] Built ACUIhE.ACUIESolver.Matching.GroupSearch (3.1s)
+✔ [2289/2328] Built ACUIhE.ACUIESolver.Matching.GroupSearch:c.o (179ms)
+✔ [2290/2328] Built ACUIhE.FILO.Deferred:c.o (292ms)
+✔ [2291/2328] Built ACUIhE.Solver.Forced:c.o (281ms)
+✔ [2292/2328] Built ACUIhE.ACUIESolver.Matching.Search (1.2s)
+✔ [2294/2328] Built ACUIhE.Solver.Compatibility (1.3s)
+✔ [2295/2328] Built ACUIhE.Solver.Decomposition (4.5s)
+✔ [2296/2328] Built ACUIhE.Solver.Compatibility:c.o (128ms)
+✔ [2297/2328] Built ACUIhE.Solver.Decomposition:c.o (229ms)
+✔ [2298/2328] Built ACUIhE.ACUIESolver.Finite.Search (1.1s)
+⚠ [2300/2328] Built ACUIhE.Solver.Search (1.5s)
+warning: ACUIhE/Solver/Search.lean:182:0: automatically included section variable(s) unused in theorem `ACUIhE.Solver.Prepared.incompatible_ready`:
+  [DecidableEq Var]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq Var] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+✔ [2301/2328] Built ACUIhE.Solver.Search:c.o (106ms)
+✔ [2302/2328] Built ACUIhE.Solver.Elimination (1.6s)
+✔ [2303/2328] Built ACUIhE.Solver.Elimination:c.o (226ms)
+✔ [2304/2328] Built ACUIhE.ACUIESolver.Solver (1.2s)
+✔ [2306/2328] Built ACUIhE.Solver.Interpretation (1.4s)
+✔ [2308/2328] Built ACUIhE.Solver.Projection (1.6s)
+✔ [2310/2328] Built ACUIhE.ACUIESolver (976ms)
+✔ [2312/2328] Built ACUIhE.Solver.Reconstruction (1.1s)
+✔ [2314/2328] Built ACUIhE.Solver.Decision (1.1s)
+✔ [2315/2328] Built ACUIhE.Solver.Decision:c.o (74ms)
+✔ [2316/2328] Built ACUIhE.Solver (980ms)
+✔ [2318/2328] Built ACUIhE (1.2s)
+✔ [2320/2328] Built Benchmarks.Fuzz (1.7s)
+ℹ [2321/2328] Built Benchmarks.OptimizationTests (1.6s)
+info: Benchmarks/OptimizationTests.lean:56:0: 'ACUIhE.Solver.solve_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:57:0: 'ACUIhE.Solver.solve_sound_eval' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:58:0: 'ACUIhE.Solver.solve_complete_of_unifier' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:59:0: 'ACUIhE.Solver.solve_none_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:60:0: 'ACUIhE.Solver.isUnifiable_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:61:0: 'ACUIhE.Solver.Elimination.run_unifiable_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:62:0: 'ACUIhE.FILO.Coordinates.defer_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:63:0: 'ACUIhE.Solver.Prepared.required_positive' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:65:0: 'ACUIhE.Solver.Prepared.dependency_order' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:66:0: 'ACUIhE.Solver.compatible_necessary' depends on axioms: [propext, Classical.choice, Quot.sound]
+✔ [2322/2328] Built Main (1.1s)
+✔ [2324/2328] Built Benchmarks.OptimizationTests:c.o (894ms)
+✔ [2325/2328] Built Benchmarks.Fuzz:c.o (1.1s)
+✔ [2326/2328] Built acuihe:exe (2.2s)
+✔ [2327/2328] Built acuihe_bench:exe (1.8s)
+✔ [2328/2328] Built acuihe_optimization_tests:exe (1.0s)
+Build completed successfully (2328 jobs).

@@ -1,0 +1,122 @@
+[
+  {
+    "id": "chain_sat/100",
+    "equations": 100,
+    "variables": 99,
+    "expected": true,
+    "statuses": {
+      "timeout": 3
+    },
+    "completed_median_ms": null
+  },
+  {
+    "id": "chain_unsat/100",
+    "equations": 100,
+    "variables": 99,
+    "expected": false,
+    "statuses": {
+      "timeout": 3
+    },
+    "completed_median_ms": null
+  },
+  {
+    "id": "union_cycle/100",
+    "equations": 100,
+    "variables": 100,
+    "expected": true,
+    "statuses": {
+      "timeout": 3
+    },
+    "completed_median_ms": null
+  },
+  {
+    "id": "hom_cycle/100",
+    "equations": 100,
+    "variables": 100,
+    "expected": true,
+    "statuses": {
+      "ok": 3
+    },
+    "completed_median_ms": 3427.78
+  },
+  {
+    "id": "E_cycle/100",
+    "equations": 100,
+    "variables": 100,
+    "expected": true,
+    "statuses": {
+      "timeout": 3
+    },
+    "completed_median_ms": null
+  },
+  {
+    "id": "mixed_cycle/100",
+    "equations": 100,
+    "variables": 100,
+    "expected": true,
+    "statuses": {
+      "timeout": 3
+    },
+    "completed_median_ms": null
+  },
+  {
+    "id": "chain_sat/200",
+    "equations": 200,
+    "variables": 199,
+    "expected": true,
+    "statuses": {
+      "timeout": 3
+    },
+    "completed_median_ms": null
+  },
+  {
+    "id": "chain_unsat/200",
+    "equations": 200,
+    "variables": 199,
+    "expected": false,
+    "statuses": {
+      "timeout": 3
+    },
+    "completed_median_ms": null
+  },
+  {
+    "id": "union_cycle/200",
+    "equations": 200,
+    "variables": 200,
+    "expected": true,
+    "statuses": {
+      "timeout": 3
+    },
+    "completed_median_ms": null
+  },
+  {
+    "id": "hom_cycle/200",
+    "equations": 200,
+    "variables": 200,
+    "expected": true,
+    "statuses": {
+      "timeout": 3
+    },
+    "completed_median_ms": null
+  },
+  {
+    "id": "E_cycle/200",
+    "equations": 200,
+    "variables": 200,
+    "expected": true,
+    "statuses": {
+      "timeout": 3
+    },
+    "completed_median_ms": null
+  },
+  {
+    "id": "mixed_cycle/200",
+    "equations": 200,
+    "variables": 200,
+    "expected": true,
+    "statuses": {
+      "timeout": 3
+    },
+    "completed_median_ms": null
+  }
+]

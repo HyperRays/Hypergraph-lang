@@ -1,0 +1,11 @@
+{
+  "executable": "/Users/soham/Documents/programming/ACUIh/ACUIhE/.lake/build/bin/acuihe_bench",
+  "executable_sha256": "37e246c2aadff2983c11819ce1da9ae1c29d7b9d560f85e6252ba2f0096e3c20",
+  "cutoff_s": 5.0,
+  "repeats": 3,
+  "mode": "decision",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "timing": "Existing fresh-process, post-parse handshake harness; preprocessing included",
+  "interpretation": "Six deliberately simple connected families, two sizes, repeated identical inputs; not statistical sampling of workloads",
+  "job_order_seed": 20260910
+}

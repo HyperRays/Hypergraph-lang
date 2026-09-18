@@ -1,0 +1,30 @@
+⚠ [1130/1902] Replayed ACUIhE.Solver.Search
+warning: ACUIhE/Solver/Search.lean:182:0: automatically included section variable(s) unused in theorem `ACUIhE.Solver.Prepared.incompatible_ready`:
+  [DecidableEq Var]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq Var] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+✔ [2260/2273] Built ACUIhE.Solver.Decomposition (2.2s)
+✔ [2261/2273] Built ACUIhE.Solver.Decomposition:c.o (370ms)
+✔ [2262/2273] Built ACUIhE.Solver.Elimination (1.2s)
+✔ [2263/2273] Built ACUIhE.Solver.Elimination:c.o (154ms)
+✔ [2264/2273] Built ACUIhE.Solver.Decision (2.2s)
+✔ [2266/2273] Built ACUIhE.Solver (982ms)
+✔ [2268/2273] Built Benchmarks.Fuzz (1.5s)
+ℹ [2269/2273] Built Benchmarks.OptimizationTests (1.5s)
+info: Benchmarks/OptimizationTests.lean:59:0: 'ACUIhE.Solver.solve_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:60:0: 'ACUIhE.Solver.solve_sound_eval' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:61:0: 'ACUIhE.Solver.solve_complete_of_unifier' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:62:0: 'ACUIhE.Solver.solve_none_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:63:0: 'ACUIhE.Solver.isUnifiable_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:64:0: 'ACUIhE.Solver.Elimination.run_unifiable_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:65:0: 'ACUIhE.FILO.Coordinates.defer_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:66:0: 'ACUIhE.Solver.Prepared.required_positive' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:68:0: 'ACUIhE.Solver.Prepared.dependency_order' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:69:0: 'ACUIhE.Solver.compatible_necessary' depends on axioms: [propext, Classical.choice, Quot.sound]
+✔ [2270/2273] Built Benchmarks.OptimizationTests:c.o (823ms)
+✔ [2271/2273] Built Benchmarks.Fuzz:c.o (929ms)
+✔ [2272/2273] Built acuihe_bench:exe (1.9s)
+✔ [2273/2273] Built acuihe_optimization_tests:exe (2.0s)
+Build completed successfully (2273 jobs).

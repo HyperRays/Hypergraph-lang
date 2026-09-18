@@ -1,0 +1,9 @@
+{
+  "executable": "/private/tmp/acuihe-optimization-sfmjpy60/.lake/build/bin/acuihe_bench",
+  "executable_sha256": "99e6ebc2997b67b91b0ea6ca6d24889735e0a811c8d6c6dfdc34e39bcce2c593",
+  "cutoff_s": 5.0,
+  "repeats": 1,
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "timing": "Fresh-process post-parse handshake; all solver preprocessing included",
+  "scope": "Deterministic connected families, not random-workload sampling"
+}

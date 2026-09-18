@@ -1,0 +1,27 @@
+[
+  {
+    "path": "ACUIhE/Solver/ForcedMatching.lean",
+    "before": null,
+    "after": "d99fb05e78deb8f23ef7fd62a850a0239199a45a6b4114e186fd7c15e4d9115b"
+  },
+  {
+    "path": "ACUIhE/Solver/Decomposition.lean",
+    "before": "14a74f51134cfa21629388595bb3146dd43dd1274fe36a2880d2cd63c64686a2",
+    "after": "eb00f9f238b9c882f27f3b36dc467d9edb22f6492a3ccc99640d310860e794c5"
+  },
+  {
+    "path": "Benchmarks/OptimizationTests.lean",
+    "before": "f4e0b8d40e992783f8794522fc855fa1577d243d73df7c2f71c5abf8036d6a04",
+    "after": "5e292aed8653b72942d144dc20bb3b59364df1e56613432ac6a499b3beb2e81c"
+  },
+  {
+    "path": "ACUIhE/Solver/README.md",
+    "before": "7ea649be10a60955f6236176ef52a59f8da15520e268ef1fae93fde9a1ac384c",
+    "after": "67e62306135321bf6fcaf4396396b7df6b52824d379542fe27083c74e83548db"
+  },
+  {
+    "path": "ACUIhE/Solver/Elimination.lean",
+    "before": "20eda97892a41794e41bcc05739957b55845295788f0fab3dfa569c409abda35",
+    "after": "5b8eec15ff645ff7c5ee1dae64d75c93bea53c0f5eea839408106c070a47a37c"
+  }
+]

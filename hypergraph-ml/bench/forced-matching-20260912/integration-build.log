@@ -1,0 +1,63 @@
+⚠ [1131/1866] Replayed ACUIhE.Solver.Search
+warning: ACUIhE/Solver/Search.lean:182:0: automatically included section variable(s) unused in theorem `ACUIhE.Solver.Prepared.incompatible_ready`:
+  [DecidableEq Var]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq Var] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+✔ [2271/2298] Built HMEmbedding.Types (4.7s)
+✔ [2273/2298] Built HMEmbedding.Typing (1.2s)
+✔ [2275/2298] Built HMEmbedding.Solver (1.6s)
+✔ [2276/2298] Built HMEmbedding.Examples (2.2s)
+ℹ [2277/2298] Built HMEmbedding (1.1s)
+info: HMEmbedding.lean:32:0: 'HMEmbedding.encode_equal_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: HMEmbedding.lean:33:0: 'HMEmbedding.encode_subst' depends on axioms: [propext]
+info: HMEmbedding.lean:34:0: 'HMEmbedding.encode_fv' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: HMEmbedding.lean:35:0: 'HMEmbedding.full_hm_embedding' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: HMEmbedding.lean:36:0: 'HMEmbedding.instance_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: HMEmbedding.lean:37:0: 'HMEmbedding.principal_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: HMEmbedding.lean:38:0: 'HMEmbedding.unifiable_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: HMEmbedding.lean:39:0: 'HMEmbedding.solver_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: HMEmbedding.lean:40:0: 'HMEmbedding.Examples.mixed_id_typed' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: HMEmbedding.lean:41:0: 'HMEmbedding.Examples.higher_order_id' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: HMEmbedding.lean:42:0: 'HMEmbedding.Examples.id_alpha_renaming' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: HMEmbedding.lean:43:0: 'HMEmbedding.Examples.capture_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: HMEmbedding.lean:44:0: 'HMEmbedding.Examples.occurs_rejected' depends on axioms: [propext, Quot.sound]
+✔ [2279/2298] Built CoercionPrototype.Types (8.7s)
+✔ [2281/2298] Built CoercionPrototype.Relation (1.1s)
+✔ [2283/2298] Built CoercionPrototype.Elaboration (1.4s)
+✔ [2285/2298] Built CoercionPrototype.Values (1.5s)
+✔ [2287/2298] Built CoercionPrototype.Inference (1.6s)
+✔ [2288/2298] Built CoercionPrototype.Examples (1.0s)
+✔ [2289/2298] Built CoercionPrototype.Inference:c.o (984ms)
+ℹ [2291/2298] Built CoercionPrototype (1.3s)
+info: CoercionPrototype.lean:33:0: 'CoercionPrototype.undirected_parameters' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: CoercionPrototype.lean:34:0: 'CoercionPrototype.Coerces.normal' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: CoercionPrototype.lean:35:0: 'CoercionPrototype.Coerces.substitute' depends on axioms: [propext]
+info: CoercionPrototype.lean:36:0: 'CoercionPrototype.Coerces.coherent' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: CoercionPrototype.lean:37:0: 'CoercionPrototype.mutual_subtype_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: CoercionPrototype.lean:38:0: 'CoercionPrototype.no_reverse' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: CoercionPrototype.lean:39:0: 'CoercionPrototype.expansionScheme_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: CoercionPrototype.lean:40:0: 'CoercionPrototype.elaboration_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: CoercionPrototype.lean:41:0: 'CoercionPrototype.elaboration_coherent' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: CoercionPrototype.lean:42:0: 'CoercionPrototype.equality_inserts_nothing' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: CoercionPrototype.lean:43:0: 'CoercionPrototype.inferExpansion_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: CoercionPrototype.lean:44:0: 'CoercionPrototype.inferExpansionWith_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: CoercionPrototype.lean:45:0: 'CoercionPrototype.known_equiv_general' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: CoercionPrototype.lean:46:0: 'CoercionPrototype.reverse_inference_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: CoercionPrototype.lean:47:0: 'CoercionPrototype.coercion_preserves_values' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: CoercionPrototype.lean:48:0: 'CoercionPrototype.execution_coherent' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: CoercionPrototype.lean:49:0: 'CoercionPrototype.mixed_not_scalar' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: CoercionPrototype.lean:50:0: 'CoercionPrototype.Examples.int_not_subtype_mixed' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: CoercionPrototype.lean:51:0: 'CoercionPrototype.Examples.two_polymorphic_uses' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: CoercionPrototype.lean:52:0: 'CoercionPrototype.Examples.sample_expansion_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+✔ [2293/2298] Built CoercionPrototype.Check (1.3s)
+✔ [2295/2298] Built CoercionPrototype.Profile (1.8s)
+✔ [2296/2298] Built CoercionPrototype.Profile:c.o (1.0s)
+ℹ [2297/2298] Built coercion_prototype_check:exe (1.6s)
+info: stderr:
+ld64.lld: warning: directory not found for option -L/usr/local/lib
+ℹ [2298/2298] Built coercion_prototype_profile:exe (748ms)
+info: stderr:
+ld64.lld: warning: directory not found for option -L/usr/local/lib
+Build completed successfully (2298 jobs).

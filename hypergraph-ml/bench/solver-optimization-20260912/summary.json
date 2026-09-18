@@ -1,0 +1,460 @@
+{
+  "scope": "Serial native runs on retained inputs; no worst-case or representative-workload claim.",
+  "fuzz": {
+    "cases": 1080,
+    "cutoff_s": 0.5,
+    "before_completed": 1055,
+    "after_completed": 1075,
+    "answer_disagreements": [],
+    "new_timeouts": [],
+    "rescued_timeouts": [
+      "20260910/mixed/5/3/sat/19",
+      "20260910/E/7/3/sat/1",
+      "20260910/mixed/7/3/sat/0",
+      "20260910/mixed/7/3/random/2",
+      "20260910/h/5/3/sat/17",
+      "20260910/mixed/7/3/random/10",
+      "20260910/E/7/3/random/3",
+      "20260910/h/5/3/sat/6",
+      "20260910/E/7/3/random/11",
+      "20260910/mixed/7/3/sat/11",
+      "20260910/E/7/3/sat/9",
+      "20260910/mixed/5/3/sat/14",
+      "20260910/h/5/3/sat/16",
+      "20260910/h/5/3/sat/12",
+      "20260910/E/7/3/random/4",
+      "20260910/E/7/3/sat/19",
+      "20260910/mixed/7/3/random/17",
+      "20260910/mixed/7/3/unsat/19",
+      "20260910/mixed/7/3/sat/4",
+      "20260910/mixed/7/3/unsat/18"
+    ],
+    "common_before_median_ms": 0.52725,
+    "common_after_median_ms": 0.107167,
+    "baseline_directory": "fuzz-baseline",
+    "final_directory": "fuzz-final"
+  },
+  "coercion-final": [
+    {
+      "id": "alias",
+      "mode": "decision",
+      "runs": 3,
+      "median_ms": 0.086042,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "alias",
+      "mode": "witness",
+      "runs": 3,
+      "median_ms": 0.094834,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "forward",
+      "mode": "decision",
+      "runs": 3,
+      "median_ms": 0.086292,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "forward",
+      "mode": "witness",
+      "runs": 3,
+      "median_ms": 0.09375,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "known_payload",
+      "mode": "decision",
+      "runs": 3,
+      "median_ms": 0.025958,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "known_payload",
+      "mode": "witness",
+      "runs": 3,
+      "median_ms": 0.025333,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "payload",
+      "mode": "decision",
+      "runs": 3,
+      "median_ms": 0.04425,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "payload",
+      "mode": "witness",
+      "runs": 3,
+      "median_ms": 0.043333,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "source_only",
+      "mode": "decision",
+      "runs": 3,
+      "median_ms": 0.038,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "source_only",
+      "mode": "witness",
+      "runs": 3,
+      "median_ms": 0.044833,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "target_only",
+      "mode": "decision",
+      "runs": 3,
+      "median_ms": 3076.009791,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "target_only",
+      "mode": "witness",
+      "runs": 3,
+      "median_ms": 3106.387417,
+      "statuses": {
+        "ok": 3
+      }
+    }
+  ],
+  "structured": [
+    {
+      "id": "nested-record-1-conflict",
+      "mode": "decision",
+      "runs": 3,
+      "median_ms": 0.021375,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "nested-record-1-conflict",
+      "mode": "witness",
+      "runs": 3,
+      "median_ms": 0.02175,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "nested-record-1-sat",
+      "mode": "decision",
+      "runs": 3,
+      "median_ms": 0.03075,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "nested-record-1-sat",
+      "mode": "witness",
+      "runs": 3,
+      "median_ms": 0.035375,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "nested-record-10-conflict",
+      "mode": "decision",
+      "runs": 3,
+      "median_ms": 0.097125,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "nested-record-10-conflict",
+      "mode": "witness",
+      "runs": 3,
+      "median_ms": 0.095,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "nested-record-10-sat",
+      "mode": "decision",
+      "runs": 3,
+      "median_ms": 0.114791,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "nested-record-10-sat",
+      "mode": "witness",
+      "runs": 3,
+      "median_ms": 0.125416,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "nested-record-100-conflict",
+      "mode": "decision",
+      "runs": 3,
+      "median_ms": 3.459958,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "nested-record-100-conflict",
+      "mode": "witness",
+      "runs": 3,
+      "median_ms": 3.244791,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "nested-record-100-sat",
+      "mode": "decision",
+      "runs": 3,
+      "median_ms": 3.612125,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "nested-record-100-sat",
+      "mode": "witness",
+      "runs": 3,
+      "median_ms": 3.583708,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "nested-record-50-conflict",
+      "mode": "decision",
+      "runs": 3,
+      "median_ms": 1.01225,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "nested-record-50-conflict",
+      "mode": "witness",
+      "runs": 3,
+      "median_ms": 0.998083,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "nested-record-50-sat",
+      "mode": "decision",
+      "runs": 3,
+      "median_ms": 1.080875,
+      "statuses": {
+        "ok": 3
+      }
+    },
+    {
+      "id": "nested-record-50-sat",
+      "mode": "witness",
+      "runs": 3,
+      "median_ms": 1.124791,
+      "statuses": {
+        "ok": 3
+      }
+    }
+  ],
+  "proof_audit": {
+    "axioms": [
+      "propext",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "regression_cases": 19,
+    "witness_validation": "Every successful regression witness checked against its original equations."
+  },
+  "installed_executable_sha256": "5c69d23cf97c733c24a712b59bdf0a05adb828532941765db27c2b203073b964",
+  "installed_matches_tested_binary": false,
+  "coupled": [
+    {
+      "id": "chain_sat/100",
+      "statuses": {
+        "ok": 1
+      },
+      "completed_median_ms": 0.743167
+    },
+    {
+      "id": "chain_unsat/100",
+      "statuses": {
+        "ok": 1
+      },
+      "completed_median_ms": 0.731834
+    },
+    {
+      "id": "union_cycle/100",
+      "statuses": {
+        "timeout": 1
+      },
+      "completed_median_ms": null
+    },
+    {
+      "id": "hom_cycle/100",
+      "statuses": {
+        "ok": 1
+      },
+      "completed_median_ms": 1369.927
+    },
+    {
+      "id": "E_cycle/100",
+      "statuses": {
+        "timeout": 1
+      },
+      "completed_median_ms": null
+    },
+    {
+      "id": "mixed_cycle/100",
+      "statuses": {
+        "ok": 1
+      },
+      "completed_median_ms": 1.10675
+    },
+    {
+      "id": "chain_sat/200",
+      "statuses": {
+        "ok": 1
+      },
+      "completed_median_ms": 2.719792
+    },
+    {
+      "id": "chain_unsat/200",
+      "statuses": {
+        "ok": 1
+      },
+      "completed_median_ms": 2.745458
+    },
+    {
+      "id": "union_cycle/200",
+      "statuses": {
+        "timeout": 1
+      },
+      "completed_median_ms": null
+    },
+    {
+      "id": "hom_cycle/200",
+      "statuses": {
+        "timeout": 1
+      },
+      "completed_median_ms": null
+    },
+    {
+      "id": "E_cycle/200",
+      "statuses": {
+        "timeout": 1
+      },
+      "completed_median_ms": null
+    },
+    {
+      "id": "mixed_cycle/200",
+      "statuses": {
+        "ok": 1
+      },
+      "completed_median_ms": 10.761542
+    }
+  ],
+  "final_measurement_directories": [
+    "fuzz-final",
+    "coercion-tidy",
+    "structured-final",
+    "coupled-final"
+  ],
+  "tested_executable_sha256": "81adc0d1de4406a378f6e2379828e2cad3810e0f818ccbc97e51a1ebc395fa3c",
+  "installed_matches_tested_excluding_link_metadata": true,
+  "binary_comparison": {
+    "ignored_ranges": [
+      [
+        1840,
+        1864,
+        "0x1b"
+      ],
+      [
+        1864,
+        1896,
+        "0x32"
+      ],
+      [
+        116390512,
+        117299952,
+        "signature blob"
+      ]
+    ],
+    "ignored_load_commands": {
+      "0x1b": "LC_UUID",
+      "0x32": "LC_BUILD_VERSION"
+    },
+    "normalized_sha256": "c53046d551739ac9eb6a7a0c49a609f03f9cf19c57148a8c933f063c59245e62",
+    "explanation": "All other bytes, including native code and data, are identical. The installed build has different linker UUID, SDK metadata and corresponding code signature."
+  },
+  "coercion_baseline": {
+    "source": "../coercion-profile-20260912/benchmark-replay.jsonl",
+    "repeats": 1,
+    "measurements": [
+      {
+        "id": "forward",
+        "elapsed_ms": 8732.60075,
+        "answer": true
+      },
+      {
+        "id": "known_payload",
+        "elapsed_ms": 4385.397041,
+        "answer": false
+      },
+      {
+        "id": "source_only",
+        "elapsed_ms": 398.253042,
+        "answer": true
+      },
+      {
+        "id": "target_only",
+        "elapsed_ms": 7500.26575,
+        "answer": true
+      }
+    ]
+  },
+  "verification": {
+    "core_build": "final-installed-build.log",
+    "hm_and_coercion_build": "final-integration-build.log",
+    "ocaml_tests": "final-ocaml-tests.log",
+    "axiom_audit": "final-proof-build.log",
+    "solver_regressions": "final-solver-regressions.log",
+    "coercion_regressions": "final-coercion-regressions.log",
+    "solver_regressions_passed": 19,
+    "coercion_regressions_passed": 10,
+    "ocaml_tests_passed": true
+  }
+}

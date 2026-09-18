@@ -1,185 +1,147 @@
 %{
 open Ast
-
-let loc_of (position : Lexing.position) : loc =
-  { line = position.pos_lnum; column = position.pos_cnum - position.pos_bol + 1 }
-
-let located position it = { it; loc = loc_of position }
-
-let sum position = function
-  | [single] -> single
-  | summands -> located position (TySum summands)
-
-let chain position first rest =
-  match rest with
-  | [] -> first
-  | (operator, _, _) :: _ ->
-      List.iter
-        (fun (next, at, _) ->
-          if next <> operator then raise (Mixed_ops (operator, next, at)))
-        rest;
-      located position
-        (SetOp (operator, first :: List.map (fun (_, _, value) -> value) rest))
+open Location
 %}
 
-%token <Z.t> INT
-%token <Q.t> DECIMAL
-%token <string> STRING IDENT
-%token LET STRUCT ENUM ALIAS MUT
-%token LBRACE RBRACE LBRACKET RBRACKET LPAREN RPAREN LT GT
-%token COMMA COLON DCOLON EQUALS PLUS UNDERSCORE
-%token BAR AMP MINUS BAR_EQ AMP_EQ MINUS_EQ
-%token ARROW_R ARROW_L ARROW_LR
-%token ANN_L ANN_R BANN_L BANN_R
-%token NEWLINE EOF
+%token STRUCT "struct" ENUM "enum" ALIAS "alias" LET "let" MUT "mut"
+%token <string> IDENT INT DECIMAL STRING
+%token LBRACE "{" RBRACE "}" LBRACKET "[" RBRACKET "]"
+%token LPAREN "(" RPAREN ")" LT "<" GT ">"
+%token COLON ":" COMMA "," SEMICOLON ";" EQUAL "=" DCOLON "::"
+%token PLUS "+" BANG "!" PIPE "|" AMP "&" MINUS "-"
+%token PIPE_EQUAL "|=" AMP_EQUAL "&=" MINUS_EQUAL "-="
+%token RIGHT_ARROW "->" LEFT_ARROW "<-" BOTH_ARROW "<->"
+%token RIGHT_PAYLOAD "-[" LEFT_PAYLOAD "<-["
+%token EOF
 
 %start <Ast.program> program
-%start <Ast.stmt> line
+%start <Ast.expr> expression
+%start <Ast.typ> type_expression
 
 %%
 
-program: newlines; statements = statements; EOF { statements }
-line: newlines; statement = statement; newlines; EOF { statement }
-
-statements:
-  |                                                    { [] }
-  | statement = statement; rest = after_statement     { statement :: rest }
-
-after_statement:
-  |                                                    { [] }
-  | newlines1; rest = statements                       { rest }
-
-newlines: list(NEWLINE)                                { () }
-newlines1: nonempty_list(NEWLINE)                      { () }
-
-statement:
-  | LET; name = IDENT; annotation = option(annotation); EQUALS; value = expression
-      { located $startpos (Let (name, annotation, value)) }
-  | name = IDENT; operator = update_operator; value = expression
-      { located $startpos (Update (name, operator, value)) }
-  | STRUCT; name = IDENT; parameters = loption(parameters);
-      LBRACE; newlines; fields = fields; RBRACE
-      { located $startpos (Struct (name, parameters, fields)) }
-  | ENUM; name = IDENT; parameters = loption(parameters);
-      LBRACE; newlines; variants = variants; RBRACE
-      { located $startpos (Enum (name, parameters, variants)) }
-  | ALIAS; name = IDENT; parameters = loption(parameters); EQUALS; body = type_sum
-      { located $startpos (Alias (name, parameters, body)) }
-
-annotation:
-  | COLON; mutable_ = boption(MUT); ty = type_sum       { { mutable_; ty } }
-
-parameters:
-  | LT; values = separated_nonempty_list(COMMA, IDENT); GT { values }
-
-fields:
-  |                                                    { [] }
-  | field = field; rest = field_tail                   { field :: rest }
-
-field_tail:
-  | newlines                                           { [] }
-  | newlines; COMMA; newlines                          { [] }
-  | newlines; COMMA; newlines; field = field; rest = field_tail
-                                                       { field :: rest }
-
-field:
-  | name = IDENT; COLON; ty = type_sum
-      { { field_name = name; field_type = ty; field_loc = loc_of $startpos } }
-
-variants:
-  |                                                    { [] }
-  | variant = variant; rest = variant_tail             { variant :: rest }
-
-variant_tail:
-  | newlines                                           { [] }
-  | newlines; COMMA; newlines                          { [] }
-  | newlines; COMMA; newlines; variant = variant; rest = variant_tail
-                                                       { variant :: rest }
-
-variant:
-  | name = IDENT
-      { { variant_name = name; variant_payload = []; variant_loc = loc_of $startpos } }
-  | name = IDENT; LPAREN; payload = separated_nonempty_list(COMMA, type_sum); RPAREN
-      { { variant_name = name; variant_payload = payload;
-          variant_loc = loc_of $startpos } }
-
-type_sum:
-  | values = separated_nonempty_list(PLUS, type_atom)  { sum $startpos values }
-
-type_atom:
-  | name = IDENT                                       { located $startpos (TyName name) }
-  | name = IDENT; LT; arguments = separated_nonempty_list(COMMA, type_sum); GT
-                                                       { located $startpos (TyApply (name, arguments)) }
-  | LPAREN; ty = type_sum; RPAREN                      { ty }
+program:
+  | statements = list(terminated(statement, option(SEMICOLON))) EOF
+      { statements }
 
 expression:
-  | tail = set_expression; ARROW_R; head = set_expression
-      { located $startpos (Edge (tail, head, None)) }
-  | head = set_expression; ARROW_L; tail = set_expression
-      { located $startpos (Edge (tail, head, None)) }
-  | left = set_expression; ARROW_LR; right = set_expression
-      { located $startpos (UndirectedEdge (left, right, None)) }
-  | tail = set_expression; ANN_L; payload = expression; ANN_R; head = set_expression
-      { located $startpos (Edge (tail, head, Some payload)) }
-  | head = set_expression; BANN_L; payload = expression; BANN_R; tail = set_expression
-      { located $startpos (Edge (tail, head, Some payload)) }
-  | left = set_expression; BANN_L; payload = expression; ANN_R; right = set_expression
-      { located $startpos (UndirectedEdge (left, right, Some payload)) }
-  | value = value                                      { value }
+  | value = expr EOF { value }
 
-value:
-  | value = INT                                        { located $startpos (Int value) }
-  | MINUS; value = INT                                 { located $startpos (Int (Z.neg value)) }
-  | value = DECIMAL                                    { located $startpos (Decimal value) }
-  | MINUS; value = DECIMAL                             { located $startpos (Decimal (Q.neg value)) }
-  | value = STRING                                     { located $startpos (String value) }
-  | enum_name = IDENT; DCOLON; variant_name = IDENT; arguments = option(call_arguments)
-      { located $startpos
-          (Variant (enum_name, variant_name, Option.value arguments ~default:[])) }
-  | name = IDENT; type_arguments = option(type_arguments); arguments = call_arguments
-      { located $startpos (Apply (name, type_arguments, arguments)) }
-  | LBRACKET; newlines; elements = elements; RBRACKET
-      { located $startpos (List elements) }
-  | value = set_expression                             { value }
+type_expression:
+  | value = typ EOF { value }
+
+identifier:
+  | name = IDENT { located $startpos $endpos name }
+
+parameters:
+  | { [] }
+  | LT names = comma_nonempty(identifier) GT { names }
+
+statement:
+  | STRUCT name = identifier parameters = parameters
+    LBRACE fields = comma_list(field) RBRACE
+      { located $startpos $endpos (Struct { name; parameters; fields }) }
+  | ENUM name = identifier parameters = parameters
+    LBRACE variants = comma_list(variant) RBRACE
+      { located $startpos $endpos (Enum { name; parameters; variants }) }
+  | ALIAS name = identifier parameters = parameters EQUAL body = typ
+      { located $startpos $endpos (Alias { name; parameters; body }) }
+  | LET name = identifier annotation = annotation EQUAL value = expr
+      { let mutable_, annotation = annotation in
+        located $startpos $endpos (Let { name; mutable_; annotation; value }) }
+  | name = identifier operator = update_operator value = expr
+      { located $startpos $endpos (Update { name; operator; value }) }
+
+annotation:
+  | { (false, None) }
+  | COLON mutable_ = boption(MUT) typ = typ { (mutable_, Some typ) }
+
+field:
+  | field_name = identifier COLON field_type = typ
+      { { field_name; field_type; loc = make $startpos $endpos } }
+
+variant:
+  | variant_name = identifier arguments = option(delimited(LPAREN, comma_list(typ), RPAREN))
+      { { variant_name; arguments; loc = make $startpos $endpos } }
+
+typ:
+  | typ = atomic_type { typ }
+  | left = typ PLUS right = atomic_type
+      { located $startpos $endpos (Sum_type (left, right)) }
+
+atomic_type:
+  | name = identifier arguments = type_arguments
+      { located $startpos $endpos (Named_type (name, arguments)) }
+  | BANG
+      { let name = located $startpos $endpos "Bottom" in
+        located $startpos $endpos (Named_type (name, [])) }
+  | LPAREN typ = typ RPAREN { { typ with loc = make $startpos $endpos } }
 
 type_arguments:
-  | LT; arguments = separated_nonempty_list(COMMA, type_argument); GT { arguments }
+  | { [] }
+  | LT arguments = comma_nonempty(typ) GT { arguments }
 
-type_argument:
-  | ty = type_sum                                      { Some ty }
-  | UNDERSCORE                                         { None }
+(* Arrows have the lowest precedence and do not associate. Parentheses are
+   required when an edge is itself an endpoint of another edge. *)
+expr:
+  | value = union_expr { value }
+  | left = union_expr direction = plain_arrow right = union_expr
+      { located $startpos $endpos (Edge { direction; left; right; payload = None }) }
+  | left = union_expr RIGHT_PAYLOAD payload = expr RBRACKET RIGHT_ARROW right = union_expr
+      { located $startpos $endpos
+          (Edge { direction = Forward; left; right; payload = Some payload }) }
+  | left = union_expr LEFT_PAYLOAD payload = expr RBRACKET direction = payload_end right = union_expr
+      { located $startpos $endpos (Edge { direction; left; right; payload = Some payload }) }
 
-call_arguments:
-  | LPAREN; arguments = separated_list(COMMA, expression); RPAREN { arguments }
+plain_arrow:
+  | RIGHT_ARROW { Forward }
+  | LEFT_ARROW { Backward }
+  | BOTH_ARROW { Undirected }
 
-set_expression:
-  | first = set_atom; rest = list(chained_set_atom)    { chain $startpos first rest }
+payload_end:
+  | MINUS { Backward }
+  | RIGHT_ARROW { Undirected }
 
-chained_set_atom:
-  | operator = set_operator; value = set_atom          { (operator, loc_of $startpos, value) }
+union_expr:
+  | value = intersection_expr { value }
+  | left = union_expr PIPE right = intersection_expr
+      { located $startpos $endpos (Binary (Union, left, right)) }
+  | left = union_expr MINUS right = intersection_expr
+      { located $startpos $endpos (Binary (Difference, left, right)) }
 
-set_operator:
-  | BAR                                                { Union }
-  | AMP                                                { Intersection }
-  | MINUS                                              { Difference }
+intersection_expr:
+  | value = atom { value }
+  | left = intersection_expr AMP right = atom
+      { located $startpos $endpos (Binary (Intersection, left, right)) }
+
+atom:
+  | value = INT { located $startpos $endpos (Int value) }
+  | MINUS value = INT { located $startpos $endpos (Int ("-" ^ value)) }
+  | value = DECIMAL { located $startpos $endpos (Decimal value) }
+  | MINUS value = DECIMAL { located $startpos $endpos (Decimal ("-" ^ value)) }
+  | value = STRING { located $startpos $endpos (String value) }
+  | name = identifier { located $startpos $endpos (Name name) }
+  | name = identifier LPAREN arguments = comma_list(expr) RPAREN
+      { located $startpos $endpos (Construct (name, arguments)) }
+  | name = identifier DCOLON variant = identifier
+    arguments = option(delimited(LPAREN, comma_list(expr), RPAREN))
+      { located $startpos $endpos (Variant (name, variant, arguments)) }
+  | LBRACE values = comma_list(expr) RBRACE
+      { located $startpos $endpos (Set values) }
+  | LBRACKET values = comma_list(expr) RBRACKET
+      { located $startpos $endpos (List values) }
+  | LPAREN value = expr RPAREN { { value with loc = make $startpos $endpos } }
 
 update_operator:
-  | BAR_EQ                                             { Union }
-  | AMP_EQ                                             { Intersection }
-  | MINUS_EQ                                           { Difference }
+  | PIPE_EQUAL { Union }
+  | AMP_EQUAL { Intersection }
+  | MINUS_EQUAL { Difference }
 
-set_atom:
-  | LBRACE; newlines; elements = elements; RBRACE
-      { located $startpos (Set elements) }
-  | name = IDENT                                       { located $startpos (Ref name) }
-  | LPAREN; value = expression; RPAREN                 { value }
+(* This formulation permits one trailing comma without a shift/reduce conflict. *)
+comma_list(X):
+  | { [] }
+  | values = comma_nonempty(X) { values }
 
-elements:
-  |                                                    { [] }
-  | value = expression; rest = element_tail            { value :: rest }
-
-element_tail:
-  | newlines                                           { [] }
-  | newlines; COMMA; newlines                          { [] }
-  | newlines; COMMA; newlines; value = expression; rest = element_tail
-                                                       { value :: rest }
+comma_nonempty(X):
+  | value = X { [value] }
+  | value = X COMMA rest = comma_list(X) { value :: rest }

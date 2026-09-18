@@ -1,0 +1,4 @@
+{"id": "hom_cycle/100", "mode": "witness", "status": "ok", "wall_s": 3.896506541, "answer": true, "elapsed_ns": 3895633583, "graph_weight": 100}
+{"id": "hom_cycle/200", "mode": "decision", "status": "ok", "wall_s": 24.212063958, "answer": true, "elapsed_ns": 24211039958, "graph_weight": 0}
+{"id": "chain_sat/100", "mode": "decision", "status": "timeout", "wall_s": 30}
+{"id": "E_cycle/100", "mode": "decision", "status": "timeout", "wall_s": 30}

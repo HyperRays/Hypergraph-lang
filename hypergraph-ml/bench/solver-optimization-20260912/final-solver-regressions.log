@@ -1,0 +1,19 @@
+ok: idempotent constructor alias
+ok: additive unit constructor alias
+ok: open E children can supply each other's constants
+ok: prefixed variables can supply longer constant words
+ok: restore chained bindings
+ok: record parameters
+ok: record shared variable conflict
+ok: overlapping homomorphism fields
+ok: exposed variables absorb constants
+ok: additive self reference has solutions
+ok: growing homomorphism cycle has no finite solution
+ok: E variable may vanish
+ok: one E summand may vanish
+ok: equal E summands may merge
+ok: prefixed rigid constant cannot vanish
+ok: E does not distribute
+ok: homomorphisms do not commute
+ok: ground conflict in an open problem
+ok: all shared constraints retained

@@ -1,0 +1,9 @@
+{
+  "executable": "/private/tmp/acuihe-forced-matching-dxdyzjkq/.lake/build/bin/acuihe_bench",
+  "executable_sha256": "945e6f82a22683a6996f8f12c0d370e7ba916bfd48065f19b57538a7aeca2b3f",
+  "cutoff_s": 5.0,
+  "repeats": 1,
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "timing": "Fresh-process post-parse handshake; all solver preprocessing included",
+  "scope": "Deterministic connected families, not random-workload sampling"
+}

@@ -1,0 +1,7 @@
+simplify_ns=161791
+ground_check_ns=41084
+normalize_ns=64875
+prepare_ns=333
+equations=2 simplified_equations=119 normalized_equations=0 E_children=0
+search_ns=13708
+sat=true

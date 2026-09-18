@@ -1,0 +1,86 @@
+[
+  {
+    "id": "chain_sat/100",
+    "statuses": {
+      "ok": 3
+    },
+    "completed_median_ms": 1209.926833
+  },
+  {
+    "id": "chain_unsat/100",
+    "statuses": {
+      "ok": 3
+    },
+    "completed_median_ms": 1165.316042
+  },
+  {
+    "id": "union_cycle/100",
+    "statuses": {
+      "timeout": 3
+    },
+    "completed_median_ms": null
+  },
+  {
+    "id": "hom_cycle/100",
+    "statuses": {
+      "ok": 3
+    },
+    "completed_median_ms": 1456.214417
+  },
+  {
+    "id": "E_cycle/100",
+    "statuses": {
+      "timeout": 3
+    },
+    "completed_median_ms": null
+  },
+  {
+    "id": "mixed_cycle/100",
+    "statuses": {
+      "timeout": 3
+    },
+    "completed_median_ms": null
+  },
+  {
+    "id": "chain_sat/200",
+    "statuses": {
+      "timeout": 3
+    },
+    "completed_median_ms": null
+  },
+  {
+    "id": "chain_unsat/200",
+    "statuses": {
+      "timeout": 3
+    },
+    "completed_median_ms": null
+  },
+  {
+    "id": "union_cycle/200",
+    "statuses": {
+      "timeout": 3
+    },
+    "completed_median_ms": null
+  },
+  {
+    "id": "hom_cycle/200",
+    "statuses": {
+      "timeout": 3
+    },
+    "completed_median_ms": null
+  },
+  {
+    "id": "E_cycle/200",
+    "statuses": {
+      "timeout": 3
+    },
+    "completed_median_ms": null
+  },
+  {
+    "id": "mixed_cycle/200",
+    "statuses": {
+      "timeout": 3
+    },
+    "completed_median_ms": null
+  }
+]

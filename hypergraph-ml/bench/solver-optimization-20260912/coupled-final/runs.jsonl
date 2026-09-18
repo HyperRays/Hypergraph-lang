@@ -1,0 +1,12 @@
+{"id": "hom_cycle/200", "repeat": 0, "status": "timeout", "wall_s": 5.0}
+{"id": "hom_cycle/100", "repeat": 0, "status": "ok", "wall_s": 1.3710069999999996, "answer": true, "elapsed_ns": 1369927000, "graph_weight": 0}
+{"id": "chain_sat/100", "repeat": 0, "status": "ok", "wall_s": 0.0015427500000004812, "answer": true, "elapsed_ns": 743167, "graph_weight": 0}
+{"id": "chain_sat/200", "repeat": 0, "status": "ok", "wall_s": 0.003509458000000798, "answer": true, "elapsed_ns": 2719792, "graph_weight": 0}
+{"id": "E_cycle/200", "repeat": 0, "status": "timeout", "wall_s": 5.0}
+{"id": "union_cycle/200", "repeat": 0, "status": "timeout", "wall_s": 5.0}
+{"id": "chain_unsat/200", "repeat": 0, "status": "ok", "wall_s": 0.0036131670000010274, "answer": false, "elapsed_ns": 2745458, "graph_weight": 0}
+{"id": "mixed_cycle/100", "repeat": 0, "status": "ok", "wall_s": 0.0017898340000002122, "answer": true, "elapsed_ns": 1106750, "graph_weight": 0}
+{"id": "union_cycle/100", "repeat": 0, "status": "timeout", "wall_s": 5.0}
+{"id": "mixed_cycle/200", "repeat": 0, "status": "ok", "wall_s": 0.012053625000000068, "answer": true, "elapsed_ns": 10761542, "graph_weight": 0}
+{"id": "E_cycle/100", "repeat": 0, "status": "timeout", "wall_s": 5.0}
+{"id": "chain_unsat/100", "repeat": 0, "status": "ok", "wall_s": 0.0015027090000003795, "answer": false, "elapsed_ns": 731834, "graph_weight": 0}

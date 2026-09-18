@@ -1,0 +1,24 @@
+{
+  "selected": [
+    [
+      "hom_cycle/100",
+      "witness"
+    ],
+    [
+      "hom_cycle/200",
+      "decision"
+    ],
+    [
+      "chain_sat/100",
+      "decision"
+    ],
+    [
+      "E_cycle/100",
+      "decision"
+    ]
+  ],
+  "cutoff_s": 30,
+  "repeats": 1,
+  "executable_sha256": "37e246c2aadff2983c11819ce1da9ae1c29d7b9d560f85e6252ba2f0096e3c20",
+  "interpretation": "Selected checks, including scaling/extraction of the observed successful family; not a full cohort rerun"
+}

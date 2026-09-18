@@ -1,5 +1,0 @@
-(executable
- (name hypergraph_cli)
- (modules hypergraph_cli)
- (libraries hypergraph))
-

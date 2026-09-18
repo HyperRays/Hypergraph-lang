@@ -1,0 +1,9 @@
+{
+  "executable": "/Users/soham/Documents/programming/ACUIh/ACUIhE/.lake/build/bin/acuihe_bench",
+  "executable_sha256": "b8f8555de71092ec23aaccf56673af90b7a3eddf4b133112be7cd2b15c6becb4",
+  "cutoff_s": 5.0,
+  "repeats": 1,
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "timing": "Fresh-process post-parse handshake; all solver preprocessing included",
+  "scope": "Deterministic connected families, not random-workload sampling"
+}

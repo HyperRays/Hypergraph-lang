@@ -1,0 +1,48 @@
+{
+  "timestamp_utc": "2026-09-10T12:20:22.074103+00:00",
+  "arguments": {
+    "output": "Benchmarks/results/canonical-paired",
+    "seed": 20260910,
+    "samples": 20,
+    "sizes": [
+      3,
+      5,
+      7
+    ],
+    "equations": [
+      1,
+      3
+    ],
+    "profiles": [
+      "h",
+      "E",
+      "mixed"
+    ],
+    "families": [
+      "sat",
+      "unsat",
+      "random"
+    ],
+    "modes": [
+      "decision",
+      "witness"
+    ],
+    "repeats": 3,
+    "timeout": 0.5,
+    "executable": "/Users/soham/Documents/programming/ACUIh/ACUIhE/.lake/build/bin/acuihe_bench",
+    "replay": "Benchmarks/results/shared-rules-paired/cases.jsonl",
+    "retry_timeouts": null
+  },
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "machine": "arm64",
+  "python": "3.9.6",
+  "cpu_count": 8,
+  "lean_toolchain": "leanprover/lean4:v4.33.1",
+  "executable_sha256": "37e246c2aadff2983c11819ce1da9ae1c29d7b9d560f85e6252ba2f0096e3c20",
+  "source_sha256": "fc29ded5a078877f895a73b538329ab355fe6e08fb5d2070b73654350d4d3722",
+  "cases": 60,
+  "selection": null,
+  "sampling": "seeded recursive grammar, not uniform over terms or semantic equivalence classes",
+  "timing": "monotonic Lean solver time; post-handshake wall cutoff; serial fresh processes",
+  "memory": "not measured: macOS time -l requires a sysctl disallowed by the sandbox"
+}

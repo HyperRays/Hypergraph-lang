@@ -1,0 +1,23 @@
+name = "ACUIhE"
+version = "0.1.0"
+defaultTargets = ["acuihe"]
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+rev = "v4.33.1"
+
+[[lean_lib]]
+name = "ACUIhE"
+
+[[lean_exe]]
+name = "acuihe"
+root = "Main"
+
+[[lean_exe]]
+name = "acuihe_bench"
+root = "Benchmarks.Fuzz"
+
+[[lean_exe]]
+name = "acuihe_optimization_tests"
+root = "Benchmarks.OptimizationTests"

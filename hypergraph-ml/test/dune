@@ -1,29 +1,25 @@
 (test
- (name test_solver)
- (modules test_solver)
- (libraries hypergraph))
-
-(test
- (name test_types)
- (modules test_types)
- (libraries hypergraph))
-
-(test
  (name test_parser)
  (modules test_parser)
- (libraries hypergraph zarith))
+ (libraries hypergraph)
+ (deps ../Hypergraph-lang.md)
+ (action (run %{test} %{dep:../Hypergraph-lang.md})))
+
+(cram
+ (deps ../bin/hypergraph_cli.exe ../examples/basic.hg))
 
 (test
- (name test_check)
- (modules test_check)
- (libraries hypergraph))
+ (name test_ffi)
+ (modules test_ffi)
+ (modes byte exe)
+ (libraries hypergraph threads)
+ (deps ../ffi/dllacuihe_native.so ../ffi/dllacuihe_stubs.so)
+ (action
+  (setenv CAML_LD_LIBRARY_PATH ../ffi
+   (run %{test}))))
 
 (test
- (name test_infer)
- (modules test_infer)
- (libraries hypergraph))
-
-(test
- (name test_value)
- (modules test_value)
+ (name test_ffi_domains)
+ (modules test_ffi_domains)
+ (enabled_if (>= %{ocaml_version} 5.0))
  (libraries hypergraph))

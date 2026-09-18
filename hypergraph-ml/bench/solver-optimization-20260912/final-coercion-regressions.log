@@ -1,0 +1,11 @@
+forward expansion: passed (0 ms)
+ACUI order of orientations: passed (0 ms)
+algebraic alias: passed (0 ms)
+Bottom parameters: passed (0 ms)
+reverse rejection: passed (1 ms)
+payload mismatch: passed (0 ms)
+fresh declaration parameters: passed (1135 ms)
+shared variable conflict: passed (75 ms)
+compatible accumulated constraint: passed (0 ms)
+conflicting accumulated constraint: passed (0 ms)
+All 10 solver integration checks passed.

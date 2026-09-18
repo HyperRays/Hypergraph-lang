@@ -1,0 +1,36 @@
+{"id": "mixed_cycle/200", "repeat": 2, "status": "timeout", "wall_s": 5.0}
+{"id": "union_cycle/200", "repeat": 1, "status": "timeout", "wall_s": 5.0}
+{"id": "chain_sat/200", "repeat": 2, "status": "timeout", "wall_s": 5.0}
+{"id": "hom_cycle/200", "repeat": 1, "status": "timeout", "wall_s": 5.0}
+{"id": "union_cycle/100", "repeat": 0, "status": "timeout", "wall_s": 5.0}
+{"id": "E_cycle/100", "repeat": 1, "status": "timeout", "wall_s": 5.0}
+{"id": "hom_cycle/200", "repeat": 0, "status": "timeout", "wall_s": 5.0}
+{"id": "E_cycle/200", "repeat": 0, "status": "timeout", "wall_s": 5.0}
+{"id": "chain_unsat/100", "repeat": 0, "status": "ok", "wall_s": 1.1662642499999976, "answer": false, "elapsed_ns": 1165316042, "graph_weight": 0}
+{"id": "chain_sat/100", "repeat": 1, "status": "ok", "wall_s": 1.2109433749999994, "answer": true, "elapsed_ns": 1209926833, "graph_weight": 0}
+{"id": "E_cycle/100", "repeat": 2, "status": "timeout", "wall_s": 5.0}
+{"id": "E_cycle/200", "repeat": 2, "status": "timeout", "wall_s": 5.0}
+{"id": "chain_sat/200", "repeat": 1, "status": "timeout", "wall_s": 5.0}
+{"id": "hom_cycle/100", "repeat": 0, "status": "ok", "wall_s": 1.553353125000001, "answer": true, "elapsed_ns": 1552045583, "graph_weight": 0}
+{"id": "chain_unsat/200", "repeat": 0, "status": "timeout", "wall_s": 5.0}
+{"id": "mixed_cycle/100", "repeat": 0, "status": "timeout", "wall_s": 5.0}
+{"id": "union_cycle/200", "repeat": 0, "status": "timeout", "wall_s": 5.0}
+{"id": "mixed_cycle/200", "repeat": 1, "status": "timeout", "wall_s": 5.0}
+{"id": "hom_cycle/200", "repeat": 2, "status": "timeout", "wall_s": 5.0}
+{"id": "mixed_cycle/100", "repeat": 2, "status": "timeout", "wall_s": 5.0}
+{"id": "E_cycle/100", "repeat": 0, "status": "timeout", "wall_s": 5.0}
+{"id": "mixed_cycle/200", "repeat": 0, "status": "timeout", "wall_s": 5.0}
+{"id": "E_cycle/200", "repeat": 1, "status": "timeout", "wall_s": 5.0}
+{"id": "chain_unsat/100", "repeat": 2, "status": "ok", "wall_s": 1.162070958000001, "answer": false, "elapsed_ns": 1161170625, "graph_weight": 0}
+{"id": "chain_sat/100", "repeat": 2, "status": "ok", "wall_s": 1.2163188330000025, "answer": true, "elapsed_ns": 1215371666, "graph_weight": 0}
+{"id": "chain_sat/100", "repeat": 0, "status": "ok", "wall_s": 1.210715625000006, "answer": true, "elapsed_ns": 1209859500, "graph_weight": 0}
+{"id": "union_cycle/200", "repeat": 2, "status": "timeout", "wall_s": 5.0}
+{"id": "union_cycle/100", "repeat": 2, "status": "timeout", "wall_s": 5.0}
+{"id": "chain_sat/200", "repeat": 0, "status": "timeout", "wall_s": 5.0}
+{"id": "hom_cycle/100", "repeat": 2, "status": "ok", "wall_s": 1.4546449999999993, "answer": true, "elapsed_ns": 1453722625, "graph_weight": 0}
+{"id": "chain_unsat/200", "repeat": 1, "status": "timeout", "wall_s": 5.0}
+{"id": "chain_unsat/200", "repeat": 2, "status": "timeout", "wall_s": 5.0}
+{"id": "hom_cycle/100", "repeat": 1, "status": "ok", "wall_s": 1.4571784169999944, "answer": true, "elapsed_ns": 1456214417, "graph_weight": 0}
+{"id": "chain_unsat/100", "repeat": 1, "status": "ok", "wall_s": 1.3213501249999808, "answer": false, "elapsed_ns": 1320404917, "graph_weight": 0}
+{"id": "mixed_cycle/100", "repeat": 1, "status": "timeout", "wall_s": 5.0}
+{"id": "union_cycle/100", "repeat": 1, "status": "timeout", "wall_s": 5.0}

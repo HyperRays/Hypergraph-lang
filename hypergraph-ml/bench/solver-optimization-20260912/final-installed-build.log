@@ -1,0 +1,39 @@
+⚠ [1158/2322] Replayed ACUIhE.Solver.Search
+warning: ACUIhE/Solver/Search.lean:182:0: automatically included section variable(s) unused in theorem `ACUIhE.Solver.Prepared.incompatible_ready`:
+  [DecidableEq Var]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq Var] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+✔ [2310/2328] Built ACUIhE.Solver.Decomposition (4.9s)
+✔ [2311/2328] Built ACUIhE.Solver.Decomposition:c.o (404ms)
+✔ [2312/2328] Built ACUIhE.Solver.Elimination (1.4s)
+✔ [2313/2328] Built ACUIhE.Solver.Elimination:c.o (173ms)
+✔ [2314/2328] Built ACUIhE.Solver.Decision (2.4s)
+✔ [2316/2328] Built ACUIhE.Solver (1.1s)
+✔ [2318/2328] Built ACUIhE (1.5s)
+✔ [2320/2328] Built Benchmarks.Fuzz (1.8s)
+ℹ [2321/2328] Built Benchmarks.OptimizationTests (1.8s)
+info: Benchmarks/OptimizationTests.lean:59:0: 'ACUIhE.Solver.solve_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:60:0: 'ACUIhE.Solver.solve_sound_eval' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:61:0: 'ACUIhE.Solver.solve_complete_of_unifier' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:62:0: 'ACUIhE.Solver.solve_none_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:63:0: 'ACUIhE.Solver.isUnifiable_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:64:0: 'ACUIhE.Solver.Elimination.run_unifiable_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:65:0: 'ACUIhE.FILO.Coordinates.defer_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:66:0: 'ACUIhE.Solver.Prepared.required_positive' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:68:0: 'ACUIhE.Solver.Prepared.dependency_order' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Benchmarks/OptimizationTests.lean:69:0: 'ACUIhE.Solver.compatible_necessary' depends on axioms: [propext, Classical.choice, Quot.sound]
+✔ [2322/2328] Built Main (1.1s)
+✔ [2324/2328] Built Benchmarks.OptimizationTests:c.o (922ms)
+✔ [2325/2328] Built Benchmarks.Fuzz:c.o (1.0s)
+ℹ [2326/2328] Built acuihe:exe (2.2s)
+info: stderr:
+ld64.lld: warning: directory not found for option -L/usr/local/lib
+ℹ [2327/2328] Built acuihe_bench:exe (1.9s)
+info: stderr:
+ld64.lld: warning: directory not found for option -L/usr/local/lib
+ℹ [2328/2328] Built acuihe_optimization_tests:exe (2.0s)
+info: stderr:
+ld64.lld: warning: directory not found for option -L/usr/local/lib
+Build completed successfully (2328 jobs).

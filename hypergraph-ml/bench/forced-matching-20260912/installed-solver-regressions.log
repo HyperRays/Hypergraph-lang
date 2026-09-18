@@ -1,0 +1,31 @@
+ok: binding exposed after its variable was initially undetermined
+ok: forced endpoint in an orientation sum
+ok: forced endpoint with reversed summand order
+ok: forced matching across association and nonadjacent duplicates
+ok: multiple nonzero summands may match one partner
+ok: optional unmatched E summand may vanish
+ok: ambiguous E matching retains all choices
+ok: exposed variables may absorb E summands
+ok: zero E child is not required to match
+ok: outer projection does not turn nested E into a constant
+ok: forced match retains an unmatched residual contradiction
+ok: forced fields retain shared variable conflicts
+ok: idempotent constructor alias
+ok: additive unit constructor alias
+ok: open E children can supply each other's constants
+ok: prefixed variables can supply longer constant words
+ok: restore chained bindings
+ok: record parameters
+ok: record shared variable conflict
+ok: overlapping homomorphism fields
+ok: exposed variables absorb constants
+ok: additive self reference has solutions
+ok: growing homomorphism cycle has no finite solution
+ok: E variable may vanish
+ok: one E summand may vanish
+ok: equal E summands may merge
+ok: prefixed rigid constant cannot vanish
+ok: E does not distribute
+ok: homomorphisms do not commute
+ok: ground conflict in an open problem
+ok: all shared constraints retained

@@ -1,0 +1,48 @@
+{
+  "timestamp_utc": "2026-09-12T01:00:13.102334+00:00",
+  "arguments": {
+    "output": "/Users/soham/Documents/programming/ACUIh/Hypergraph-ml/bench/forced-matching-20260912/structured-final",
+    "seed": 20260910,
+    "samples": 20,
+    "sizes": [
+      3,
+      5,
+      7
+    ],
+    "equations": [
+      1,
+      3
+    ],
+    "profiles": [
+      "h",
+      "E",
+      "mixed"
+    ],
+    "families": [
+      "sat",
+      "unsat",
+      "random"
+    ],
+    "modes": [
+      "decision",
+      "witness"
+    ],
+    "repeats": 3,
+    "timeout": 2.0,
+    "executable": "/private/tmp/acuihe-forced-matching-dxdyzjkq/.lake/build/bin/acuihe_bench",
+    "replay": "/Users/soham/Documents/programming/ACUIh/Hypergraph-ml/bench/solver-optimization-20260912/structured-cases.jsonl",
+    "retry_timeouts": null
+  },
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "machine": "arm64",
+  "python": "3.9.6",
+  "cpu_count": 8,
+  "lean_toolchain": "leanprover/lean4:v4.33.1",
+  "executable_sha256": "945e6f82a22683a6996f8f12c0d370e7ba916bfd48065f19b57538a7aeca2b3f",
+  "source_sha256": "2bda92026ffd166d8d6e6507de4830260df9c88e6ca7d4ab8f990d94cd3c0b4a",
+  "cases": 8,
+  "selection": null,
+  "sampling": "seeded recursive grammar, not uniform over terms or semantic equivalence classes",
+  "timing": "monotonic Lean solver time; post-handshake wall cutoff; serial fresh processes",
+  "memory": "not measured: macOS time -l requires a sysctl disallowed by the sandbox"
+}

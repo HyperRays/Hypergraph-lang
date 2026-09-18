@@ -1,0 +1,57 @@
+[
+  {
+    "path": "ACUIhE/ACUIESolver/Matching/GroupSearch.lean",
+    "before": "1a53df9b2088ae0fc59ef5e2c795e2d1ce4e293a3a1ffdf84b34b210103a38d5",
+    "after": "af0b7d8c48a3e473ce8d4705234680b0416f89ecc9c8283987702b505419232c"
+  },
+  {
+    "path": "ACUIhE/Solver/Decomposition.lean",
+    "before": null,
+    "after": "14a74f51134cfa21629388595bb3146dd43dd1274fe36a2880d2cd63c64686a2"
+  },
+  {
+    "path": "ACUIhE/Solver/Decision.lean",
+    "before": "8ecbd68e0bae3dcc8b45fe96bd1b34ad0bf165a7af2d353eaf7ec4c594ad5705",
+    "after": "fcae87db5719c47739e3f17652a605683babbff04672bef92d9014225995a9cd"
+  },
+  {
+    "path": "ACUIhE/Solver/Search.lean",
+    "before": "c486a0e7e3161e59a41493a020ef6acad74289cba47e6d27dc84c97862753da1",
+    "after": "d3f59114792bedcd2c13b0739e5a8f1697371fd8acbd9711ea380289a9847b56"
+  },
+  {
+    "path": "ACUIhE/Solver/Elimination.lean",
+    "before": null,
+    "after": "20eda97892a41794e41bcc05739957b55845295788f0fab3dfa569c409abda35"
+  },
+  {
+    "path": "ACUIhE/Solver/Forced.lean",
+    "before": null,
+    "after": "7bfdfa50c460cecd4bdba7039383252db06ecfcf58656512f03bf62617abe3f5"
+  },
+  {
+    "path": "ACUIhE/Solver/Compatibility.lean",
+    "before": null,
+    "after": "5dc9702f4aec4098fa284147f511f79a28aa625466bdd3e751fa24327c5ec3f6"
+  },
+  {
+    "path": "ACUIhE/FILO/Deferred.lean",
+    "before": null,
+    "after": "bb63d1158ca7a2a2412e1c40046de2c74ca690c205e267c8ca2b2180499f2654"
+  },
+  {
+    "path": "Benchmarks/OptimizationTests.lean",
+    "before": null,
+    "after": "f4e0b8d40e992783f8794522fc855fa1577d243d73df7c2f71c5abf8036d6a04"
+  },
+  {
+    "path": "lakefile.toml",
+    "before": "79fa59712f56a4d5e572c7fc48ff9a1087a8dec79abc890dbfcbdbc667591d84",
+    "after": "1f56e687275af79054862aafb5a6abe1159a54318bde966f2fc70a8b50e2f8dd"
+  },
+  {
+    "path": "ACUIhE/Solver/README.md",
+    "before": "488e8c4699a3fd43a30151f877906e30675cf189272ecebe449d04e478158182",
+    "after": "7ea649be10a60955f6236176ef52a59f8da15520e268ef1fae93fde9a1ac384c"
+  }
+]

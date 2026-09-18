@@ -1,0 +1,19 @@
+(rule
+ (targets libacuihe_native.a dllacuihe_native.so lean_c_flags.sexp lean_link_flags.sexp)
+ (deps
+  ../tools/build_lean.py
+  ../lean/HypergraphFFI.lean
+  ../lean/lakefile.lean
+  ../lean/lake-manifest.json
+  ../lean/lean-toolchain
+  (universe))
+ (action (run python3 %{dep:../tools/build_lean.py})))
+
+(library
+ (name acuihe)
+ (foreign_stubs
+  (language c)
+  (names acuihe_stubs)
+  (flags :standard -std=c11 (:include lean_c_flags.sexp)))
+ (foreign_archives acuihe_native)
+ (c_library_flags (:include lean_link_flags.sexp)))

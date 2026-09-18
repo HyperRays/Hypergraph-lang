@@ -1,2 +1,2 @@
-_build/
-test/failures/
+/_build/
+/lean/.lake/
