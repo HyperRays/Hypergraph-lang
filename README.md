@@ -1,4 +1,4 @@
-# Hypergraph-lang
+# Hypergraph-lang (WIP)
 A hypergraph language with a formally verified type system &amp; solver in lean
 
 ### Goal of the language
